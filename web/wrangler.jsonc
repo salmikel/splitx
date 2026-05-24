@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "splitx",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "splitx"
+    }
+  ],
+  "vars": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://jxcbchqewasrqjatznci.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4Y2JjaHFld2FzcnFqYXR6bmNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NTI5NDQsImV4cCI6MjA5NTIyODk0NH0.kcn3wqTnwkppl7XiVQ9Lli5NnDncXUjYMAwQHESwj9E"
+  },
+  "observability": {
+    "enabled": true
+  }
+}
