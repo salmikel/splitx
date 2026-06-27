@@ -55,16 +55,17 @@ struct TransactionRow: View {
 
             Spacer()
 
-            // Amount
+            // Amount — green for payments, primary for expenses
             VStack(alignment: .trailing, spacing: 2) {
                 Text(transaction.amount, format: .currency(code: "USD"))
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                if let share = myShare, let uid = currentUserId, transaction.paidBy != uid {
+                    .foregroundColor(transaction.type == .payment ? .green : .primary)
+                if let share = myShare, let uid = currentUserId, transaction.paidBy != uid, transaction.type == .expense {
                     Text("you owe \(share, format: .currency(code: "USD"))")
                         .font(.caption2)
                         .foregroundColor(.red)
-                } else if let share = myShare, transaction.paidBy == currentUserId, share > 0 {
+                } else if let share = myShare, transaction.paidBy == currentUserId, share > 0, transaction.type == .expense {
                     Text("others owe you")
                         .font(.caption2)
                         .foregroundColor(.green)
@@ -73,13 +74,10 @@ struct TransactionRow: View {
 
             Image(systemName: "chevron.right")
                 .font(.caption)
-                .foregroundColor(.tertiaryLabel)
+                .foregroundColor(Color(UIColor.tertiaryLabel))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .contentShape(Rectangle())
-        .overlay(alignment: .bottom) {
-            Divider().padding(.leading, 72)
-        }
     }
 }

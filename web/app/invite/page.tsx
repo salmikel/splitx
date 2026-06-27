@@ -33,12 +33,20 @@ function InvitePage() {
 
       setStatus('joining')
 
-      // Add user to group
+      // Ensure profile exists (trigger may not have fired for new users)
+      await supabase.from('profiles').upsert(
+        { id: user.id, email: user.email ?? '' },
+        { onConflict: 'id', ignoreDuplicates: true }
+      )
+
+      // Add user to group (ignore if already a member)
       const { error: memberErr } = await supabase
         .from('group_members')
-        .upsert({ group_id: inv.group_id, user_id: user.id }, { onConflict: 'group_id,user_id' })
+        .insert({ group_id: inv.group_id, user_id: user.id })
 
-      if (memberErr) { setStatus('error'); setMessage(memberErr.message); return }
+      if (memberErr && memberErr.code !== '23505') {
+        setStatus('error'); setMessage(memberErr.message); return
+      }
 
       // Mark invitation accepted
       await supabase.from('invitations').update({ status: 'accepted' }).eq('id', inv.id)

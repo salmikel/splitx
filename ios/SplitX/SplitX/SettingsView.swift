@@ -1,35 +1,31 @@
 import SwiftUI
-import UniformTypeIdentifiers
+import AuthenticationServices
 
 struct SettingsView: View {
     @EnvironmentObject var appVM: AppViewModel
     @EnvironmentObject var auth: AuthViewModel
+    @Environment(\.dismiss) private var dismiss
 
-    @State private var inviteEmail = ""
-    @State private var inviting = false
-    @State private var inviteMessage: String?
-    @State private var pendingInvitations: [Invitation] = []
+    @State private var displayNameText = ""
+    @State private var savingProfile = false
 
     @State private var newGroupName = ""
     @State private var showCreateGroup = false
     @State private var creatingGroup = false
 
-    @State private var displayName = ""
-    @State private var savingProfile = false
-
-    @State private var showFilePicker = false
-    @State private var csvMessage: String?
-    @State private var csvLoading = false
+    // Apple linking from Settings
+    @State private var linkNonce = ""
+    @State private var linkError: String?
 
     var body: some View {
         NavigationStack {
             Form {
-                // Profile section
+                // ── Profile ──
                 Section("Profile") {
                     HStack {
                         Text("Name")
                         Spacer()
-                        TextField("Your name", text: $displayName)
+                        TextField("Your name", text: $displayNameText)
                             .multilineTextAlignment(.trailing)
                             .foregroundColor(.secondary)
                     }
@@ -38,106 +34,81 @@ struct SettingsView: View {
                         .disabled(savingProfile)
                 }
 
-                // Group section
-                if let group = appVM.selectedGroup {
-                    Section("Group · \(group.name)") {
-                        ForEach(appVM.members) { member in
-                            HStack(spacing: 12) {
-                                Circle()
-                                    .fill(Color.accentColor)
-                                    .frame(width: 36, height: 36)
-                                    .overlay(Text(member.initial).font(.system(size: 15, weight: .semibold)).foregroundColor(.white))
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(member.name).fontWeight(.medium)
-                                    Text(member.email).font(.caption).foregroundColor(.secondary)
-                                }
-                                Spacer()
-                                if member.id == appVM.currentUser?.id {
-                                    Text("You")
-                                        .font(.caption)
-                                        .foregroundColor(.accentColor)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 3)
-                                        .background(Color.accentColor.opacity(0.1))
-                                        .cornerRadius(10)
-                                }
-                            }
-                        }
+                // ── Connected Accounts ──
+                Section {
+                    // Email / magic link (always present)
+                    HStack {
+                        Image(systemName: "envelope.fill")
+                            .foregroundColor(.accentColor)
+                            .frame(width: 28)
+                        Text("Email magic link")
+                        Spacer()
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
                     }
 
-                    // Invite section
-                    Section {
+                    // Apple
+                    if auth.hasAppleLinked {
                         HStack {
-                            TextField("friend@example.com", text: $inviteEmail)
-                                .keyboardType(.emailAddress)
-                                .autocapitalization(.none)
-                                .autocorrectionDisabled()
-                            Button(inviting ? "Sending…" : "Invite") { sendInvite() }
-                                .disabled(inviting || !inviteEmail.contains("@"))
-                                .foregroundColor(.accentColor)
+                            Image(systemName: "apple.logo")
+                                .foregroundColor(.primary)
+                                .frame(width: 28)
+                            Text("Apple ID")
+                            Spacer()
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
                         }
-                        if let msg = inviteMessage {
-                            Text(msg)
+                    } else {
+                        // Show Apple sign-in button to link
+                        SignInWithAppleButton(.continue) { request in
+                            let nonce = randomNonceString()
+                            linkNonce = nonce
+                            request.requestedScopes = []  // email already known
+                            request.nonce = sha256Hex(nonce)
+                        } onCompletion: { result in
+                            Task { await handleAppleLink(result: result) }
+                        }
+                        .frame(height: 44)
+                        .cornerRadius(8)
+
+                        if let err = linkError {
+                            Text(err)
                                 .font(.caption)
-                                .foregroundColor(msg.starts(with: "Error") ? .red : .green)
-                        }
-                    } header: {
-                        Text("Invite Members")
-                    }
-
-                    if !pendingInvitations.isEmpty {
-                        Section("Pending Invites") {
-                            ForEach(pendingInvitations) { inv in
-                                HStack {
-                                    Text(inv.email)
-                                    Spacer()
-                                    Text("Pending")
-                                        .font(.caption)
-                                        .foregroundColor(.orange)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 3)
-                                        .background(Color.orange.opacity(0.1))
-                                        .cornerRadius(10)
-                                }
-                            }
+                                .foregroundColor(.red)
                         }
                     }
-
-                    // CSV Import
-                    Section {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Columns: **Date**, **Description**, **Amount**, **Paid By**, then **Percentage Owed by [Name]** for each member.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Button(csvLoading ? "Importing…" : "Choose CSV File") {
-                                showFilePicker = true
-                            }
-                            .disabled(csvLoading)
-                            if let msg = csvMessage {
-                                Text(msg)
-                                    .font(.caption)
-                                    .foregroundColor(msg.starts(with: "Error") || msg.contains("Missing") ? .red : .green)
-                            }
-                        }
-                    } header: {
-                        Text("Import CSV")
-                    }
-
-                } else {
-                    Section {
-                        if showCreateGroup {
-                            TextField("Group name", text: $newGroupName)
-                            Button(creatingGroup ? "Creating…" : "Create Group") { createGroup() }
-                                .disabled(creatingGroup || newGroupName.isEmpty)
-                        } else {
-                            Button("Create a Group") { showCreateGroup = true }
-                        }
-                    } header: {
-                        Text("Group")
+                } header: {
+                    Text("Connected Accounts")
+                } footer: {
+                    if !auth.hasAppleLinked {
+                        Text("Link your Apple ID to sign in faster without a magic link email.")
                     }
                 }
 
-                // Sign out
+                // ── Groups ──
+                Section {
+                    ForEach(appVM.groups) { group in
+                        NavigationLink(destination: GroupSettingsView(group: group)) {
+                            Text(group.name).font(.body)
+                        }
+                    }
+
+                    if showCreateGroup {
+                        TextField("Group name", text: $newGroupName)
+                            .autocorrectionDisabled()
+                        Button(creatingGroup ? "Creating…" : "Create Group") { createGroup() }
+                            .disabled(creatingGroup || newGroupName.trimmingCharacters(in: .whitespaces).isEmpty)
+                        Button("Cancel") { showCreateGroup = false; newGroupName = "" }
+                            .foregroundColor(.secondary)
+                    } else {
+                        Button("+ New Group") { showCreateGroup = true }
+                            .foregroundColor(.accentColor)
+                    }
+                } header: {
+                    Text("Groups")
+                }
+
+                // ── Sign Out ──
                 Section {
                     Button(role: .destructive) {
                         Task { await auth.signOut() }
@@ -148,42 +119,28 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
-            .onAppear { displayName = appVM.currentUser?.displayName ?? "" }
-            .task { await loadInvitations() }
-            .fileImporter(
-                isPresented: $showFilePicker,
-                allowedContentTypes: [.commaSeparatedText, .text],
-                allowsMultipleSelection: false
-            ) { result in
-                Task { await handleCSVImport(result: result) }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .fontWeight(.semibold)
+                }
             }
+            .onAppear { displayNameText = appVM.currentUser?.displayName ?? "" }
         }
     }
+
+    // MARK: - Actions
 
     private func saveProfile() {
         guard let user = appVM.currentUser else { return }
         savingProfile = true
         Task {
-            try? await SupabaseService.shared.updateProfile(id: user.id, displayName: displayName.isEmpty ? nil : displayName)
+            try? await SupabaseService.shared.updateProfile(
+                id: user.id,
+                displayName: displayNameText.isEmpty ? nil : displayNameText
+            )
             await appVM.load()
             savingProfile = false
-        }
-    }
-
-    private func sendInvite() {
-        guard let group = appVM.selectedGroup, let user = appVM.currentUser else { return }
-        inviting = true
-        inviteMessage = nil
-        Task {
-            do {
-                try await SupabaseService.shared.sendInvitation(groupId: group.id, invitedBy: user.id, email: inviteEmail.trimmingCharacters(in: .whitespaces).lowercased())
-                inviteMessage = "Invitation sent to \(inviteEmail)"
-                inviteEmail = ""
-                await loadInvitations()
-            } catch {
-                inviteMessage = "Error: \(error.localizedDescription)"
-            }
-            inviting = false
         }
     }
 
@@ -192,7 +149,10 @@ struct SettingsView: View {
         creatingGroup = true
         Task {
             do {
-                _ = try await SupabaseService.shared.createGroup(name: newGroupName.trimmingCharacters(in: .whitespaces), userId: user.id)
+                _ = try await SupabaseService.shared.createGroup(
+                    name: newGroupName.trimmingCharacters(in: .whitespaces),
+                    userId: user.id
+                )
                 await appVM.load()
                 showCreateGroup = false
                 newGroupName = ""
@@ -201,89 +161,25 @@ struct SettingsView: View {
         }
     }
 
-    private func loadInvitations() async {
-        guard let group = appVM.selectedGroup else { return }
-        pendingInvitations = (try? await SupabaseService.shared.fetchPendingInvitations(groupId: group.id)) ?? []
-    }
-
-    private func handleCSVImport(result: Result<[URL], Error>) async {
-        guard let group = appVM.selectedGroup else { return }
-        csvMessage = nil
-        csvLoading = true
-        defer { csvLoading = false }
-
+    private func handleAppleLink(result: Result<ASAuthorization, Error>) async {
+        linkError = nil
         do {
-            let urls = try result.get()
-            guard let url = urls.first else { return }
-            guard url.startAccessingSecurityScopedResource() else { return }
-            defer { url.stopAccessingSecurityScopedResource() }
-
-            let text = try String(contentsOf: url, encoding: .utf8)
-            let lines = text.components(separatedBy: .newlines).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-            guard lines.count > 1 else { csvMessage = "CSV is empty"; return }
-
-            let headers = lines[0].components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-            let dateIdx = headers.firstIndex { $0.range(of: "date", options: .caseInsensitive) != nil }
-            let descIdx = headers.firstIndex { $0.range(of: "desc", options: .caseInsensitive) != nil }
-            let amtIdx = headers.firstIndex { $0.range(of: "amount", options: .caseInsensitive) != nil }
-            let paidIdx = headers.firstIndex { $0.range(of: "paid.*by", options: [.caseInsensitive, .regularExpression]) != nil }
-
-            guard let di = dateIdx, let de = descIdx, let ai = amtIdx, let pi = paidIdx else {
-                csvMessage = "Missing columns: Date, Description, Amount, Paid By"
+            let authorization = try result.get()
+            guard
+                let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                let tokenData  = credential.identityToken,
+                let idToken    = String(data: tokenData, encoding: .utf8)
+            else {
+                linkError = "Could not read Apple credential."
                 return
             }
-
-            // Find percentage columns
-            let pctCols: [(idx: Int, name: String)] = headers.enumerated().compactMap { idx, h in
-                guard let m = h.range(of: "percentage owed by (.+)", options: [.caseInsensitive, .regularExpression]) else { return nil }
-                let name = String(h[m].dropFirst("Percentage Owed by ".count))
-                return (idx: idx, name: name)
-            }
-
-            var imported = 0, skipped = 0
-            let isoFmt = DateFormatter.isoDate
-
-            for i in 1..<lines.count {
-                let cols = lines[i].components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-                guard cols.count > max(di, de, ai, pi),
-                      let amount = Double(cols[ai]), amount > 0,
-                      !cols[de].isEmpty else { skipped += 1; continue }
-
-                let rawDate = cols[di]
-                let parsedDate = isoFmt.date(from: rawDate).map { isoFmt.string(from: $0) } ?? rawDate
-
-                let paidByProfile = appVM.members.first {
-                    $0.name.lowercased() == cols[pi].lowercased() || $0.email.lowercased() == cols[pi].lowercased()
-                }
-
-                var splitEntries: [(userId: UUID, percentage: Double, amount: Double)] = []
-                for col in pctCols {
-                    guard col.idx < cols.count, let pct = Double(cols[col.idx]) else { continue }
-                    let profile = appVM.members.first {
-                        $0.name.lowercased() == col.name.lowercased() || $0.email.lowercased() == col.name.lowercased()
-                    }
-                    guard let p = profile else { continue }
-                    splitEntries.append((userId: p.id, percentage: pct, amount: (pct / 100) * amount))
-                }
-
-                do {
-                    try await SupabaseService.shared.createTransaction(
-                        groupId: group.id,
-                        description: cols[de],
-                        amount: amount,
-                        paidBy: paidByProfile?.id ?? appVM.currentUser!.id,
-                        type: .expense,
-                        date: parsedDate,
-                        splits: splitEntries
-                    )
-                    imported += 1
-                } catch { skipped += 1 }
-            }
-
-            csvMessage = "Imported \(imported) transaction\(imported == 1 ? "" : "s")\(skipped > 0 ? ", skipped \(skipped)" : "")."
-            await appVM.refresh()
+            await auth.linkAppleIdentity(idToken: idToken, nonce: linkNonce)
+            if let err = auth.errorMessage { linkError = err }
         } catch {
-            csvMessage = "Error: \(error.localizedDescription)"
+            let ns = error as NSError
+            if ns.domain == ASAuthorizationError.errorDomain,
+               ns.code   == ASAuthorizationError.canceled.rawValue { return }
+            linkError = error.localizedDescription
         }
     }
 }

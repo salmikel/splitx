@@ -20,6 +20,9 @@
 		AAAA00000000000000000116 /* TransactionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA0000000000000000020A /* TransactionRow.swift */; };
 		AAAA00000000000000000117 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AAAA0000000000000000020B /* Assets.xcassets */; };
 		AAAA00000000000000000118 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = AAAA00000000000000000701 /* Supabase */; };
+		AAAA00000000000000000119 /* GroupSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA0000000000000000020E /* GroupSettingsView.swift */; };
+		AAAA0000000000000000011A /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA0000000000000000020F /* NotificationManager.swift */; };
+		AAAA0000000000000000011B /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA00000000000000000211 /* NetworkMonitor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +40,10 @@
 		AAAA0000000000000000020B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AAAA0000000000000000020C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AAAA0000000000000000020D /* SplitX.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SplitX.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAAA0000000000000000020E /* GroupSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupSettingsView.swift; sourceTree = "<group>"; };
+		AAAA0000000000000000020F /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		AAAA00000000000000000210 /* SplitX.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SplitX.entitlements; sourceTree = "<group>"; };
+		AAAA00000000000000000211 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -51,7 +58,7 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		AAAA00000000000000000400 /* MainGroup */ = {
+		AAAA00000000000000000400 = {
 			isa = PBXGroup;
 			children = (
 				AAAA00000000000000000402 /* SplitX */,
@@ -81,6 +88,10 @@
 				AAAA00000000000000000208 /* TransactionFormView.swift */,
 				AAAA00000000000000000209 /* SettingsView.swift */,
 				AAAA0000000000000000020A /* TransactionRow.swift */,
+				AAAA0000000000000000020E /* GroupSettingsView.swift */,
+				AAAA0000000000000000020F /* NotificationManager.swift */,
+				AAAA00000000000000000211 /* NetworkMonitor.swift */,
+				AAAA00000000000000000210 /* SplitX.entitlements */,
 				AAAA0000000000000000020B /* Assets.xcassets */,
 				AAAA0000000000000000020C /* Info.plist */,
 			);
@@ -173,6 +184,9 @@
 				AAAA00000000000000000114 /* TransactionFormView.swift in Sources */,
 				AAAA00000000000000000115 /* SettingsView.swift in Sources */,
 				AAAA00000000000000000116 /* TransactionRow.swift in Sources */,
+				AAAA00000000000000000119 /* GroupSettingsView.swift in Sources */,
+				AAAA0000000000000000011A /* NotificationManager.swift in Sources */,
+				AAAA0000000000000000011B /* NetworkMonitor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -235,6 +249,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
@@ -265,6 +280,7 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				VALIDATE_PRODUCT = YES;
 			};
@@ -275,12 +291,17 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = SplitX/SplitX.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 94PZKL85KB;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = SplitX/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SplitX;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
 				INFOPLIST_KEY_UILaunchScreen_Generation = NO;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -289,11 +310,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.splitx.app;
+				PRODUCT_BUNDLE_IDENTIFIER = yourcompany.SharedExpenses;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -302,12 +323,17 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = SplitX/SplitX.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 94PZKL85KB;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = SplitX/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SplitX;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
 				INFOPLIST_KEY_UILaunchScreen_Generation = NO;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -316,11 +342,11 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.splitx.app;
+				PRODUCT_BUNDLE_IDENTIFIER = yourcompany.SharedExpenses;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -365,7 +391,6 @@
 			productName = Supabase;
 		};
 /* End XCSwiftPackageProductDependency section */
-
 	};
 	rootObject = AAAA00000000000000000501 /* Project object */;
 }

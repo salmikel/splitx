@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Profile, Transaction, TransactionSplit } from '@/lib/types'
-import { displayName } from '@/lib/utils'
+import { displayName, formatCurrency } from '@/lib/utils'
 
 export default function EditTransactionPage() {
   const router = useRouter()
@@ -235,6 +235,27 @@ export default function EditTransactionPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </>
+        )}
+
+        {/* Per-user dollar amounts */}
+        {type === 'expense' && parseFloat(amount) > 0 && (
+          <>
+            <div className="section-header" style={{ paddingLeft: 0 }}>Amount per Person</div>
+            <div className="card" style={{ marginBottom: 24 }}>
+              {members.map((m) => {
+                const pct = parseFloat(splits[m.id] ?? '0') || 0
+                const share = (pct / 100) * (parseFloat(amount) || 0)
+                return (
+                  <div key={m.id} className="list-row" style={{ cursor: 'default' }}>
+                    <div style={{ flex: 1, fontSize: 15, color: 'var(--ios-label-2)' }}>
+                      {displayName(m)}{m.id === currentUser?.id ? ' (you)' : ''}
+                    </div>
+                    <span style={{ fontWeight: 600, fontSize: 17 }}>{formatCurrency(share)}</span>
+                  </div>
+                )
+              })}
             </div>
           </>
         )}

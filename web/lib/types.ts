@@ -10,6 +10,8 @@ export interface Group {
   name: string
   created_by: string | null
   created_at: string
+  default_paid_by: string | null
+  default_splits: Record<string, number>
 }
 
 export interface GroupMember {

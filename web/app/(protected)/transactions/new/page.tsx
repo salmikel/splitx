@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Profile } from '@/lib/types'
-import { displayName } from '@/lib/utils'
+import { displayName, formatCurrency } from '@/lib/utils'
 
 function NewTransactionForm() {
   const router = useRouter()
@@ -32,20 +32,28 @@ function NewTransactionForm() {
       if (!user) return
 
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-      if (profile) { setCurrentUser(profile); setPaidBy(profile.id) }
+      if (profile) setCurrentUser(profile)
 
-      const { data: memberRows } = await supabase
-        .from('group_members')
-        .select('*, profile:profiles(*)')
-        .eq('group_id', groupId)
+      const [{ data: memberRows }, { data: grp }] = await Promise.all([
+        supabase.from('group_members').select('*, profile:profiles(*)').eq('group_id', groupId),
+        supabase.from('groups').select('*').eq('id', groupId).single(),
+      ])
 
-      const profiles: Profile[] = (memberRows ?? []).map((m: { profile: Profile }) => m.profile)
+      const profiles: Profile[] = (memberRows ?? []).map((m: { profile: Profile }) => m.profile).filter(Boolean)
       setMembers(profiles)
 
-      // Default even split
+      // Pre-fill paid-by from group default, else current user
+      if (grp?.default_paid_by) setPaidBy(grp.default_paid_by)
+      else if (profile) setPaidBy(profile.id)
+
+      // Pre-fill splits from group defaults, else even split
       const even = profiles.length > 0 ? (100 / profiles.length).toFixed(2) : '0'
       const initial: Record<string, string> = {}
-      profiles.forEach((p) => { initial[p.id] = even })
+      profiles.forEach((p) => {
+        initial[p.id] = grp?.default_splits?.[p.id] != null
+          ? String(grp.default_splits[p.id])
+          : even
+      })
       setSplits(initial)
 
       setLoading(false)
@@ -260,6 +268,27 @@ function NewTransactionForm() {
                   </div>
                 </div>
               ))}
+            </div>
+          </>
+        )}
+
+        {/* Per-user dollar amounts */}
+        {type === 'expense' && parseFloat(amount) > 0 && (
+          <>
+            <div className="section-header" style={{ paddingLeft: 0 }}>Amount per Person</div>
+            <div className="card" style={{ marginBottom: 24 }}>
+              {members.map((m) => {
+                const pct = parseFloat(splits[m.id] ?? '0') || 0
+                const share = (pct / 100) * (parseFloat(amount) || 0)
+                return (
+                  <div key={m.id} className="list-row" style={{ cursor: 'default' }}>
+                    <div style={{ flex: 1, fontSize: 15, color: 'var(--ios-label-2)' }}>
+                      {displayName(m)}{m.id === currentUser?.id ? ' (you)' : ''}
+                    </div>
+                    <span style={{ fontWeight: 600, fontSize: 17 }}>{formatCurrency(share)}</span>
+                  </div>
+                )
+              })}
             </div>
           </>
         )}

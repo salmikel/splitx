@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import Supabase
 
 @MainActor
@@ -10,24 +11,89 @@ final class AppViewModel: ObservableObject {
     @Published var transactions: [SplitTransaction] = []
     @Published var balances: [Balance] = []
     @Published var isLoading = false
+    @Published var isSyncing = false
     @Published var errorMessage: String?
 
+    /// Transactions captured offline, persisted across launches.
+    @Published private(set) var pendingTransactions: [PendingTransaction] = []
+
     private let service = SupabaseService.shared
+    private static let pendingQueueKey = "splitx.pendingTransactions"
+    private static let cacheKey        = "splitx.appState.v1"
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        loadPendingFromDisk()
+    }
+
+    // MARK: - Network observation
+
+    /// Wire up automatic sync-on-reconnect. Call once from the root view.
+    func observeNetwork(_ monitor: NetworkMonitor) {
+        monitor.$isOnline
+            .removeDuplicates()
+            .dropFirst()          // ignore the initial published value
+            .filter { $0 }        // only react when coming back online
+            .sink { [weak self] _ in
+                guard let self else { return }
+                Task { await self.refresh() }
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Load
 
     func load() async {
-        guard let user = try? await supabase.auth.user() else { return }
+        // Read the user from the local keychain session — no network call,
+        // so this works offline.
+        guard let user = supabase.auth.currentUser else { return }
+
         isLoading = true
         defer { isLoading = false }
 
+        // Hydrate from disk cache first — the UI becomes responsive
+        // immediately without waiting for any network round-trip.
+        loadCachedState()
+
+        // Attempt a fresh network fetch. If it fails (offline or flaky
+        // connection) we just keep showing the cached data.
         do {
             currentUser = try await service.fetchProfile(id: user.id)
             groups = try await service.fetchGroups(userId: user.id)
-            if selectedGroup == nil { selectedGroup = groups.first }
+
+            // Preserve the previously selected group if it still exists.
+            if let current = selectedGroup {
+                selectedGroup = groups.first(where: { $0.id == current.id }) ?? groups.first
+            } else {
+                selectedGroup = groups.first
+            }
+
             if let group = selectedGroup {
                 try await loadGroup(group)
             }
+
+            saveCachedState()
+
+            // Flush any offline-queued transactions so they appear immediately.
+            let synced = await syncPendingTransactions()
+            if synced, let group = selectedGroup {
+                try? await loadGroup(group)
+                saveCachedState()
+            }
+
+            if let user = currentUser {
+                NotificationManager.shared.startListening(
+                    userId: user.id,
+                    userEmail: user.email,
+                    groupIds: groups.map(\.id)
+                )
+            }
         } catch {
-            errorMessage = error.localizedDescription
+            // If we already populated data from cache, don't surface the
+            // network error — the user can work with what they have.
+            if groups.isEmpty {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
@@ -39,15 +105,148 @@ final class AppViewModel: ObservableObject {
     }
 
     func refresh() async {
-        guard let group = selectedGroup else { return }
-        do { try await loadGroup(group) } catch { errorMessage = error.localizedDescription }
+        guard let current = selectedGroup else { return }
+        if !pendingTransactions.isEmpty { isSyncing = true }
+        do {
+            await syncPendingTransactions()
+            let freshGroup = (try? await service.fetchGroup(id: current.id)) ?? current
+            try await loadGroup(freshGroup)
+            saveCachedState()
+        } catch { errorMessage = error.localizedDescription }
+        isSyncing = false
+    }
+
+    func deleteTransaction(_ tx: SplitTransaction) async {
+        // Optimistically remove from local state for instant UI feedback.
+        transactions.removeAll { $0.id == tx.id }
+        balances = computeBalances()
+        do {
+            try await service.deleteTransaction(id: tx.id)
+            saveCachedState()
+        } catch {
+            // Rollback: reload from server if the delete failed.
+            errorMessage = error.localizedDescription
+            if let group = selectedGroup { try? await loadGroup(group) }
+        }
     }
 
     func selectGroup(_ group: SplitGroup) async {
-        do { try await loadGroup(group) } catch { errorMessage = error.localizedDescription }
+        do {
+            try await loadGroup(group)
+            saveCachedState()
+        } catch { errorMessage = error.localizedDescription }
     }
 
-    // MARK: Balance computation
+    // MARK: - Offline Queue
+
+    /// Pending transactions for the currently selected group (for display).
+    var pendingForCurrentGroup: [PendingTransaction] {
+        guard let id = selectedGroup?.id else { return [] }
+        return pendingTransactions.filter { $0.groupId == id }
+    }
+
+    func enqueuePending(_ tx: PendingTransaction) {
+        pendingTransactions.append(tx)
+        persistPendingQueue()
+    }
+
+    private func removePending(id: UUID) {
+        pendingTransactions.removeAll { $0.id == id }
+        persistPendingQueue()
+    }
+
+    private func persistPendingQueue() {
+        let data = try? JSONEncoder().encode(pendingTransactions)
+        UserDefaults.standard.set(data, forKey: Self.pendingQueueKey)
+    }
+
+    private func loadPendingFromDisk() {
+        guard let data = UserDefaults.standard.data(forKey: Self.pendingQueueKey),
+              let decoded = try? JSONDecoder().decode([PendingTransaction].self, from: data) else { return }
+        pendingTransactions = decoded
+    }
+
+    /// Uploads all queued transactions to Supabase in capture order.
+    /// Returns true if at least one was synced successfully.
+    @discardableResult
+    func syncPendingTransactions() async -> Bool {
+        guard !pendingTransactions.isEmpty else { return false }
+        var didSync = false
+        for pending in pendingTransactions {
+            do {
+                try await service.createTransaction(
+                    groupId: pending.groupId,
+                    description: pending.description,
+                    amount: pending.amount,
+                    paidBy: pending.paidBy,
+                    type: pending.type,
+                    date: pending.date,
+                    splits: pending.splits.map {
+                        (userId: $0.userId, percentage: $0.percentage, amount: $0.amount)
+                    }
+                )
+                removePending(id: pending.id)
+                didSync = true
+            } catch {
+                // Stop at first failure — network may have dropped again.
+                break
+            }
+        }
+        return didSync
+    }
+
+    // MARK: - Disk cache
+
+    /// Snapshot of the data needed to render the dashboard offline.
+    /// Balance is derived — not stored; it's recomputed from members + transactions.
+    private struct CachedState: Codable {
+        var currentUser: Profile?
+        var groups: [SplitGroup]
+        var selectedGroupId: UUID?
+        var members: [Profile]
+        var transactions: [SplitTransaction]
+    }
+
+    private static let cacheEncoder: JSONEncoder = {
+        let e = JSONEncoder()
+        e.dateEncodingStrategy = .secondsSince1970
+        return e
+    }()
+
+    private static let cacheDecoder: JSONDecoder = {
+        let d = JSONDecoder()
+        d.dateDecodingStrategy = .secondsSince1970
+        return d
+    }()
+
+    private func saveCachedState() {
+        let state = CachedState(
+            currentUser: currentUser,
+            groups: groups,
+            selectedGroupId: selectedGroup?.id,
+            members: members,
+            transactions: transactions
+        )
+        guard let data = try? Self.cacheEncoder.encode(state) else { return }
+        UserDefaults.standard.set(data, forKey: Self.cacheKey)
+    }
+
+    private func loadCachedState() {
+        guard
+            let data  = UserDefaults.standard.data(forKey: Self.cacheKey),
+            let state = try? Self.cacheDecoder.decode(CachedState.self, from: data)
+        else { return }
+
+        currentUser   = state.currentUser
+        groups        = state.groups
+        members       = state.members
+        transactions  = state.transactions
+        selectedGroup = state.groups.first(where: { $0.id == state.selectedGroupId })
+                        ?? state.groups.first
+        balances      = computeBalances()
+    }
+
+    // MARK: - Balance computation (only one direction stored per pair)
 
     private func computeBalances() -> [Balance] {
         var net = [UUID: [UUID: Double]]()
@@ -60,8 +259,8 @@ final class AppViewModel: ObservableObject {
             guard let splits = tx.splits, let paidBy = tx.paidBy else { continue }
             for split in splits {
                 guard split.userId != paidBy else { continue }
-                net[split.userId]?[paidBy] = (net[split.userId]?[paidBy] ?? 0) + split.amount
-                net[paidBy]?[split.userId] = (net[paidBy]?[split.userId] ?? 0) - split.amount
+                let current = net[split.userId]?[paidBy] ?? 0
+                net[split.userId]?[paidBy] = current + split.amount
             }
         }
 
@@ -81,9 +280,13 @@ final class AppViewModel: ObservableObject {
                 guard abs(netAmt) >= 0.01 else { continue }
 
                 let fromId = netAmt > 0 ? a.id : b.id
-                let toId = netAmt > 0 ? b.id : a.id
+                let toId   = netAmt > 0 ? b.id : a.id
                 guard let from = profileMap[fromId], let to = profileMap[toId] else { continue }
-                result.append(Balance(fromUserId: fromId, toUserId: toId, fromProfile: from, toProfile: to, amount: abs(netAmt)))
+                result.append(Balance(
+                    fromUserId: fromId, toUserId: toId,
+                    fromProfile: from, toProfile: to,
+                    amount: abs(netAmt)
+                ))
             }
         }
         return result

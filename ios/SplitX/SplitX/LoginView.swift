@@ -1,9 +1,13 @@
 import SwiftUI
+import AuthenticationServices
+
+// MARK: - Login View
 
 struct LoginView: View {
     @EnvironmentObject var auth: AuthViewModel
     @State private var email = ""
     @State private var isLoading = false
+    @State private var currentNonce = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -11,14 +15,11 @@ struct LoginView: View {
 
             // Logo
             VStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.accentColor)
-                    .frame(width: 80, height: 80)
-                    .overlay(
-                        Text("S")
-                            .font(.system(size: 42, weight: .bold))
-                            .foregroundColor(.white)
-                    )
+                Image("AppLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 90, height: 90)
+                    .cornerRadius(20)
                 Text("SplitX")
                     .font(.system(size: 30, weight: .bold))
                 Text("Split expenses effortlessly")
@@ -27,7 +28,29 @@ struct LoginView: View {
             }
             .padding(.bottom, 48)
 
-            // Form card
+            // Sign in with Apple
+            SignInWithAppleButton(.signIn) { request in
+                let nonce = randomNonceString()
+                currentNonce = nonce
+                request.requestedScopes = [.fullName, .email]
+                request.nonce = sha256Hex(nonce)
+            } onCompletion: { result in
+                Task { await auth.handleAppleResult(result, nonce: currentNonce) }
+            }
+            .frame(maxWidth: .infinity, maxHeight: 50)
+            .cornerRadius(12)
+            .padding(.horizontal, 20)
+
+            // Divider
+            HStack {
+                Rectangle().fill(Color(.separator)).frame(height: 1)
+                Text("or").font(.caption).foregroundColor(.secondary).padding(.horizontal, 8)
+                Rectangle().fill(Color(.separator)).frame(height: 1)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+
+            // Email field
             VStack(spacing: 0) {
                 HStack {
                     Text("Email")
@@ -56,6 +79,7 @@ struct LoginView: View {
                     .padding(.bottom, 12)
             }
 
+            // Continue with Email
             Button(action: signIn) {
                 if isLoading {
                     ProgressView().tint(.white)
@@ -76,7 +100,7 @@ struct LoginView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.top, 12)
+                .padding(.top, 10)
                 .padding(.horizontal, 40)
 
             Spacer()
@@ -93,6 +117,8 @@ struct LoginView: View {
         }
     }
 }
+
+// MARK: - Magic Link Sent
 
 struct MagicLinkSentView: View {
     @EnvironmentObject var auth: AuthViewModel
@@ -114,6 +140,75 @@ struct MagicLinkSentView: View {
             Spacer()
         }
         .padding(32)
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+    }
+}
+
+// MARK: - Link Account Prompt
+
+struct LinkAccountPromptView: View {
+    @EnvironmentObject var auth: AuthViewModel
+    let email: String
+    let idToken: String
+    let nonce: String
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            VStack(spacing: 20) {
+                Image(systemName: "person.badge.key.fill")
+                    .font(.system(size: 56))
+                    .foregroundColor(.accentColor)
+
+                Text("Existing Account Found")
+                    .font(.title2.bold())
+
+                Text("A SplitX account already exists for **\(email)**. Would you like to link your Apple ID with that account so you can sign in with either?")
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 32)
+            }
+            .padding(.bottom, 48)
+
+            VStack(spacing: 12) {
+                Button {
+                    Task { await auth.confirmLinkAccount(email: email, idToken: idToken, nonce: nonce) }
+                } label: {
+                    Text("Yes, Link My Accounts")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                        .background(Color.accentColor)
+                        .cornerRadius(12)
+                }
+
+                Button {
+                    Task { await auth.skipLinkAccount(idToken: idToken, nonce: nonce) }
+                } label: {
+                    Text("No, Continue as New Account")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 15)
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .cornerRadius(12)
+                }
+            }
+            .padding(.horizontal, 20)
+
+            if let error = auth.errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+            }
+
+            Spacer()
+        }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
 }

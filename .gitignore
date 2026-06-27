@@ -1,3 +1,7 @@
+# Apple credentials (never commit these)
+*.p8
+gen-apple-secret.mjs
+
 # Next.js
 web/.next/
 web/node_modules/

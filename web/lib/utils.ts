@@ -34,12 +34,9 @@ export function computeBalances(
 
     for (const split of tx.splits) {
       if (split.user_id === tx.paid_by) continue
-      // split.user_id owes tx.paid_by split.amount
-      if (net[split.user_id] && net[split.user_id][tx.paid_by] !== undefined) {
+      // split.user_id owes tx.paid_by their split amount
+      if (net[split.user_id]?.[tx.paid_by] !== undefined) {
         net[split.user_id][tx.paid_by] += split.amount
-      }
-      if (net[tx.paid_by] && net[tx.paid_by][split.user_id] !== undefined) {
-        net[tx.paid_by][split.user_id] -= split.amount
       }
     }
   }

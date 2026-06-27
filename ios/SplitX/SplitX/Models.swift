@@ -21,11 +21,25 @@ struct SplitGroup: Codable, Identifiable {
     let name: String
     let createdBy: UUID?
     let createdAt: Date
+    var defaultPaidBy: UUID?
+    var defaultSplits: [String: Double]
 
     enum CodingKeys: String, CodingKey {
         case id, name
         case createdBy = "created_by"
         case createdAt = "created_at"
+        case defaultPaidBy = "default_paid_by"
+        case defaultSplits = "default_splits"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        createdBy = try c.decodeIfPresent(UUID.self, forKey: .createdBy)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        defaultPaidBy = try c.decodeIfPresent(UUID.self, forKey: .defaultPaidBy)
+        defaultSplits = (try? c.decodeIfPresent([String: Double].self, forKey: .defaultSplits)) ?? [:]
     }
 }
 
@@ -113,4 +127,26 @@ struct Balance: Identifiable {
     let fromProfile: Profile
     let toProfile: Profile
     let amount: Double
+}
+
+// MARK: - Offline Pending Transaction
+
+/// A transaction captured while the device was offline.
+/// Persisted in UserDefaults and synced to Supabase on reconnect.
+struct PendingTransaction: Codable, Identifiable {
+    struct SplitEntry: Codable {
+        let userId: UUID
+        let percentage: Double
+        let amount: Double
+    }
+
+    let id: UUID            // Local-only UUID, replaced by server ID after sync
+    let groupId: UUID
+    let description: String
+    let amount: Double
+    let paidBy: UUID
+    let type: TransactionType
+    let date: String        // "yyyy-MM-dd"
+    let splits: [SplitEntry]
+    let queuedAt: Date
 }

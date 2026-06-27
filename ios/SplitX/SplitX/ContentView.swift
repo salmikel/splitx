@@ -18,6 +18,9 @@ struct ContentView: View {
         case .awaitingMagicLink(let email):
             MagicLinkSentView(email: email)
 
+        case .promptLinkAccount(let email, let idToken, let nonce):
+            LinkAccountPromptView(email: email, idToken: idToken, nonce: nonce)
+
         case .signedIn:
             MainTabView()
                 .task { await appVM.load() }
@@ -27,15 +30,6 @@ struct ContentView: View {
 
 struct MainTabView: View {
     var body: some View {
-        TabView {
-            DashboardView()
-                .tabItem {
-                    Label("Home", systemImage: "house.fill")
-                }
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape.fill")
-                }
-        }
+        DashboardView()
     }
 }
