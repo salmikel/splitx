@@ -102,6 +102,17 @@ final class SupabaseService: ObservableObject {
         return group
     }
 
+    /// Deletes a group and everything in it. Members, invitations,
+    /// transactions, and splits cascade via FK. RLS restricts this to the
+    /// group's creator (admin).
+    func deleteGroup(id: UUID) async throws {
+        try await supabase
+            .from("groups")
+            .delete()
+            .eq("id", value: id.uuidString)
+            .execute()
+    }
+
     func fetchGroup(id: UUID) async throws -> SplitGroup {
         try await supabase
             .from("groups")
@@ -110,6 +121,17 @@ final class SupabaseService: ObservableObject {
             .single()
             .execute()
             .value
+    }
+
+    /// Sets the group's display currency (ISO 4217 code). RLS restricts group
+    /// updates to the creator, so only the admin can change it.
+    func updateGroupCurrency(id: UUID, currency: String) async throws {
+        struct Update: Encodable { let currency: String }
+        try await supabase
+            .from("groups")
+            .update(Update(currency: currency))
+            .eq("id", value: id.uuidString)
+            .execute()
     }
 
     func updateGroupDefaults(id: UUID, defaultPaidBy: UUID?, defaultSplits: [String: Double]) async throws {
@@ -167,6 +189,12 @@ final class SupabaseService: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        // The invite API authenticates the caller and enforces RLS as this user.
+        // Native has no session cookie, so send the Supabase access token as a
+        // Bearer header (the web app authenticates via cookies instead).
+        let accessToken = try await supabase.auth.session.accessToken
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
 
         let body: [String: String] = [
             "email": email,
@@ -445,5 +473,17 @@ final class SupabaseService: ObservableObject {
             .eq("group_id", value: groupId.uuidString)
             .eq("user_id", value: removedUserId.uuidString)
             .execute()
+    }
+
+    // MARK: Account deletion
+
+    /// Permanently deletes the signed-in user's account and personal data.
+    ///
+    /// Deleting an auth user requires the service-role key, so this calls the
+    /// `delete-account` Edge Function rather than doing it client-side. The
+    /// user is identified server-side from the JWT the Supabase client attaches
+    /// automatically — the client can't delete anyone else's account.
+    func deleteAccount() async throws {
+        try await supabase.functions.invoke("delete-account")
     }
 }

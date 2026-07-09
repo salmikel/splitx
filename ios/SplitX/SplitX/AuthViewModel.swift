@@ -208,6 +208,25 @@ final class AuthViewModel: ObservableObject {
         state = .signedOut
     }
 
+    // MARK: - Delete account
+
+    /// Permanently deletes the user's account, then signs out locally.
+    /// Returns true on success; on failure sets `errorMessage` and stays signed in.
+    @discardableResult
+    func deleteAccount() async -> Bool {
+        errorMessage = nil
+        do {
+            try await SupabaseService.shared.deleteAccount()
+            try? await supabase.auth.signOut()
+            hasAppleLinked = false
+            state = .signedOut
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
     // MARK: - Helpers
 
     private func appleIsLinked() async -> Bool {

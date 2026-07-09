@@ -23,9 +23,10 @@ struct SplitGroup: Codable, Identifiable {
     let createdAt: Date
     var defaultPaidBy: UUID?
     var defaultSplits: [String: Double]
+    var currency: String
 
     enum CodingKeys: String, CodingKey {
-        case id, name
+        case id, name, currency
         case createdBy = "created_by"
         case createdAt = "created_at"
         case defaultPaidBy = "default_paid_by"
@@ -40,6 +41,45 @@ struct SplitGroup: Codable, Identifiable {
         createdAt = try c.decode(Date.self, forKey: .createdAt)
         defaultPaidBy = try c.decodeIfPresent(UUID.self, forKey: .defaultPaidBy)
         defaultSplits = (try? c.decodeIfPresent([String: Double].self, forKey: .defaultSplits)) ?? [:]
+        currency = (try? c.decodeIfPresent(String.self, forKey: .currency)) ?? "USD"
+    }
+}
+
+// MARK: - Currency
+
+/// Curated list of supported group currencies. `.currency(code:)` handles the
+/// actual number formatting; `symbol`/`name` are only used for pickers and the
+/// amount-field prefix where we render our own label.
+enum AppCurrency {
+    static let all: [(code: String, name: String, symbol: String)] = [
+        ("USD", "US Dollar", "$"),
+        ("EUR", "Euro", "€"),
+        ("GBP", "British Pound", "£"),
+        ("CAD", "Canadian Dollar", "$"),
+        ("AUD", "Australian Dollar", "$"),
+        ("JPY", "Japanese Yen", "¥"),
+        ("CHF", "Swiss Franc", "CHF"),
+        ("CNY", "Chinese Yuan", "¥"),
+        ("INR", "Indian Rupee", "₹"),
+        ("MXN", "Mexican Peso", "$"),
+        ("BRL", "Brazilian Real", "R$"),
+        ("SEK", "Swedish Krona", "kr"),
+        ("NOK", "Norwegian Krone", "kr"),
+        ("DKK", "Danish Krone", "kr"),
+        ("PLN", "Polish Złoty", "zł"),
+        ("NZD", "New Zealand Dollar", "$"),
+        ("SGD", "Singapore Dollar", "$"),
+        ("HKD", "Hong Kong Dollar", "$"),
+        ("ZAR", "South African Rand", "R"),
+        ("AED", "UAE Dirham", "AED"),
+    ]
+
+    static func symbol(for code: String) -> String {
+        all.first { $0.code == code }?.symbol ?? code
+    }
+
+    static func name(for code: String) -> String {
+        all.first { $0.code == code }?.name ?? code
     }
 }
 

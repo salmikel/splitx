@@ -17,6 +17,9 @@ final class AppViewModel: ObservableObject {
     /// Transactions captured offline, persisted across launches.
     @Published private(set) var pendingTransactions: [PendingTransaction] = []
 
+    /// Currency code of the currently selected group (falls back to USD).
+    var currencyCode: String { selectedGroup?.currency ?? "USD" }
+
     private let service = SupabaseService.shared
     private static let pendingQueueKey = "splitx.pendingTransactions"
     private static let cacheKey        = "splitx.appState.v1"
@@ -24,6 +27,37 @@ final class AppViewModel: ObservableObject {
 
     init() {
         loadPendingFromDisk()
+        observeAuthSignOut()
+    }
+
+    // MARK: - Auth observation
+
+    /// Wipes all local data the moment the user signs out or deletes their
+    /// account, so the next account signed in on this device can never see the
+    /// previous user's cached profile, groups, members, or balances.
+    private func observeAuthSignOut() {
+        Task { [weak self] in
+            for await (event, _) in supabase.auth.authStateChanges {
+                guard let self else { return }
+                if event == .signedOut {
+                    self.purgeLocalData()
+                }
+            }
+        }
+    }
+
+    /// Clears every trace of the current user from memory and disk.
+    func purgeLocalData() {
+        currentUser = nil
+        groups = []
+        selectedGroup = nil
+        members = []
+        transactions = []
+        balances = []
+        pendingTransactions = []
+        UserDefaults.standard.removeObject(forKey: Self.cacheKey)
+        UserDefaults.standard.removeObject(forKey: Self.pendingQueueKey)
+        NotificationManager.shared.stopListening()
     }
 
     // MARK: - Network observation
@@ -48,12 +82,20 @@ final class AppViewModel: ObservableObject {
         // so this works offline.
         guard let user = supabase.auth.currentUser else { return }
 
+        // If in-memory state belongs to a different user (e.g. someone signed
+        // out and a new account signed in before a purge landed), drop it so we
+        // never render the previous user's data.
+        if let current = currentUser, current.id != user.id {
+            purgeLocalData()
+        }
+
         isLoading = true
         defer { isLoading = false }
 
         // Hydrate from disk cache first — the UI becomes responsive
-        // immediately without waiting for any network round-trip.
-        loadCachedState()
+        // immediately without waiting for any network round-trip. Only the
+        // signed-in user's own cache is loaded (see loadCachedState).
+        loadCachedState(for: user.id)
 
         // Attempt a fresh network fetch. If it fails (offline or flaky
         // connection) we just keep showing the cached data.
@@ -85,7 +127,7 @@ final class AppViewModel: ObservableObject {
                 NotificationManager.shared.startListening(
                     userId: user.id,
                     userEmail: user.email,
-                    groupIds: groups.map(\.id)
+                    groups: groups
                 )
             }
         } catch {
@@ -200,6 +242,7 @@ final class AppViewModel: ObservableObject {
     /// Snapshot of the data needed to render the dashboard offline.
     /// Balance is derived — not stored; it's recomputed from members + transactions.
     private struct CachedState: Codable {
+        var ownerId: UUID?          // which user this cache belongs to
         var currentUser: Profile?
         var groups: [SplitGroup]
         var selectedGroupId: UUID?
@@ -221,6 +264,7 @@ final class AppViewModel: ObservableObject {
 
     private func saveCachedState() {
         let state = CachedState(
+            ownerId: currentUser?.id,
             currentUser: currentUser,
             groups: groups,
             selectedGroupId: selectedGroup?.id,
@@ -231,10 +275,11 @@ final class AppViewModel: ObservableObject {
         UserDefaults.standard.set(data, forKey: Self.cacheKey)
     }
 
-    private func loadCachedState() {
+    private func loadCachedState(for userId: UUID) {
         guard
             let data  = UserDefaults.standard.data(forKey: Self.cacheKey),
-            let state = try? Self.cacheDecoder.decode(CachedState.self, from: data)
+            let state = try? Self.cacheDecoder.decode(CachedState.self, from: data),
+            state.ownerId == userId   // never load another user's cache (or a pre-ownerId cache)
         else { return }
 
         currentUser   = state.currentUser

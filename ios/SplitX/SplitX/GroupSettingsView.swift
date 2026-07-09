@@ -18,6 +18,7 @@ struct GroupSettingsView: View {
     let initialGroup: SplitGroup
 
     @EnvironmentObject var appVM: AppViewModel
+    @Environment(\.dismiss) private var dismiss
 
     @State private var group: SplitGroup
     @State private var members: [Profile] = []
@@ -30,6 +31,14 @@ struct GroupSettingsView: View {
     @State private var defaultSplitPcts: [UUID: String] = [:]
     @State private var savingDefaults = false
     @State private var defaultsMessage: String?
+
+    // Currency
+    @State private var currencyMessage: String?
+
+    // Delete group
+    @State private var showDeleteGroupConfirm = false
+    @State private var deletingGroup = false
+    @State private var deleteGroupError: String?
 
     // Invite
     @State private var inviteEmail = ""
@@ -71,11 +80,13 @@ struct GroupSettingsView: View {
             } else {
                 Form {
                     membersSection
+                    currencySection
                     defaultSettingsSection
                     inviteSection
                     if !invitations.isEmpty { pendingInvitesSection }
                     exportSection
                     importSection
+                    if isCreator { deleteGroupSection }
                 }
             }
         }
@@ -96,6 +107,12 @@ struct GroupSettingsView: View {
         }
         .sheet(item: $memberToRemove) { toRemove in
             removeMemberSheet(for: toRemove)
+        }
+        .alert("Delete Group?", isPresented: $showDeleteGroupConfirm) {
+            Button("Delete", role: .destructive) { Task { await doDeleteGroup() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently deletes \"\(group.name)\" and all of its expenses, payments, and balances for every member. This can't be undone.")
         }
     }
 
@@ -231,6 +248,39 @@ struct GroupSettingsView: View {
             removeError = error.localizedDescription
         }
         removingMember = false
+    }
+
+    private var currencySection: some View {
+        Section {
+            if isCreator {
+                Picker("Currency", selection: Binding(
+                    get: { group.currency },
+                    set: { saveCurrency($0) }
+                )) {
+                    ForEach(AppCurrency.all, id: \.code) { c in
+                        Text("\(c.name) (\(c.symbol))").tag(c.code)
+                    }
+                }
+                if let msg = currencyMessage {
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundColor(msg.starts(with: "Error") ? .red : .green)
+                }
+            } else {
+                HStack {
+                    Text("Currency")
+                    Spacer()
+                    Text("\(AppCurrency.name(for: group.currency)) (\(AppCurrency.symbol(for: group.currency)))")
+                        .foregroundColor(.secondary)
+                }
+            }
+        } header: {
+            Text("Currency")
+        } footer: {
+            Text(isCreator
+                 ? "Applies to all amounts shown in this group."
+                 : "Only the group creator can change the currency.")
+        }
     }
 
     private var defaultSettingsSection: some View {
@@ -373,6 +423,47 @@ struct GroupSettingsView: View {
         }
     }
 
+    private var deleteGroupSection: some View {
+        Section {
+            Button(role: .destructive) {
+                deleteGroupError = nil
+                showDeleteGroupConfirm = true
+            } label: {
+                HStack {
+                    Spacer()
+                    if deletingGroup {
+                        ProgressView()
+                    } else {
+                        Text("Delete Group")
+                    }
+                    Spacer()
+                }
+            }
+            .disabled(deletingGroup)
+
+            if let err = deleteGroupError {
+                Text(err).font(.caption).foregroundColor(.red)
+            }
+        } footer: {
+            Text("Only the group creator can delete the group. This removes it for all members.")
+        }
+    }
+
+    // MARK: - Delete group
+
+    private func doDeleteGroup() async {
+        deletingGroup = true
+        deleteGroupError = nil
+        do {
+            try await SupabaseService.shared.deleteGroup(id: group.id)
+            await appVM.load()          // refresh groups; selects another or shows empty state
+            dismiss()                   // pop back to Settings
+        } catch {
+            deleteGroupError = "Error: \(error.localizedDescription)"
+            deletingGroup = false
+        }
+    }
+
     // MARK: - Load
 
     private func load() async {
@@ -428,6 +519,23 @@ struct GroupSettingsView: View {
                 defaultsMessage = "Error: \(error.localizedDescription)"
             }
             savingDefaults = false
+        }
+    }
+
+    // MARK: - Currency
+
+    private func saveCurrency(_ code: String) {
+        guard code != group.currency else { return }
+        group.currency = code               // optimistic local update
+        currencyMessage = nil
+        Task {
+            do {
+                try await SupabaseService.shared.updateGroupCurrency(id: group.id, currency: code)
+                currencyMessage = "Currency updated."
+                if group.id == appVM.selectedGroup?.id { await appVM.load() }
+            } catch {
+                currencyMessage = "Error: \(error.localizedDescription)"
+            }
         }
     }
 

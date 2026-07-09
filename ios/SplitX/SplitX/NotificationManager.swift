@@ -35,12 +35,15 @@ final class NotificationManager: NSObject, ObservableObject {
     // MARK: - Realtime subscriptions
 
     /// Call whenever the signed-in user or their group list changes.
-    func startListening(userId: UUID, userEmail: String, groupIds: [UUID]) {
+    func startListening(userId: UUID, userEmail: String, groups: [SplitGroup]) {
         stopListening()
-        guard !groupIds.isEmpty else { return }
+        guard !groups.isEmpty else { return }
 
         let email = userEmail.lowercased()
-        let groupIdSet = Set(groupIds.map { $0.uuidString.lowercased() })
+        let groupIdSet = Set(groups.map { $0.id.uuidString.lowercased() })
+        let currencyByGroup = Dictionary(
+            uniqueKeysWithValues: groups.map { ($0.id.uuidString.lowercased(), $0.currency) }
+        )
         let userIdStr = userId.uuidString.lowercased()
 
         realtimeTask = Task {
@@ -67,7 +70,8 @@ final class NotificationManager: NSObject, ObservableObject {
 
                         let desc   = record["description"]?.stringValue ?? "New transaction"
                         let amount = record["amount"]?.numericValue ?? 0
-                        let body   = String(format: "%@ – $%.2f", desc, amount)
+                        let code   = currencyByGroup[gid.lowercased()] ?? "USD"
+                        let body   = "\(desc) – \(amount.formatted(.currency(code: code)))"
                         await NotificationManager.shared.fire(title: "New Transaction", body: body)
                     }
                 }

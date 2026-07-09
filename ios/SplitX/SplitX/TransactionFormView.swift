@@ -3,6 +3,8 @@ import SwiftUI
 struct TransactionFormView: View {
     @EnvironmentObject var appVM: AppViewModel
     @EnvironmentObject var networkMonitor: NetworkMonitor
+    @EnvironmentObject var subscriptions: SubscriptionManager
+    @EnvironmentObject var adManager: AdManager
     @Environment(\.dismiss) var dismiss
 
     var initialType: TransactionType = .expense
@@ -55,7 +57,7 @@ struct TransactionFormView: View {
                     .autocorrectionDisabled()
 
                     HStack {
-                        Text("$").foregroundColor(.secondary)
+                        Text(AppCurrency.symbol(for: appVM.currencyCode)).foregroundColor(.secondary)
                         TextField("0.00", text: $amountText)
                             .keyboardType(.decimalPad)
                     }
@@ -100,7 +102,7 @@ struct TransactionFormView: View {
                                          ? "\(member.name) (you)" : member.name)
                                         .foregroundColor(.secondary)
                                     Spacer()
-                                    Text((pct / 100.0) * amount, format: .currency(code: "USD"))
+                                    Text((pct / 100.0) * amount, format: .currency(code: appVM.currencyCode))
                                         .fontWeight(.semibold)
                                 }
                             }
@@ -341,6 +343,9 @@ struct TransactionFormView: View {
                     try await SupabaseService.shared.createTransaction(
                         groupId: groupId, description: description, amount: amount,
                         paidBy: paid, type: type, date: dateStr, splits: splitEntries)
+                    // Free tier: count this completed action toward showing an
+                    // interstitial (never for subscribers). No-op until 2B.
+                    if !subscriptions.isPremium { adManager.registerCompletedAction() }
                 }
                 dismiss()
             } catch {

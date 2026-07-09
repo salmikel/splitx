@@ -17,6 +17,14 @@ struct SettingsView: View {
     @State private var linkNonce = ""
     @State private var linkError: String?
 
+    // Account deletion
+    @State private var showDeleteConfirm = false
+    @State private var deletingAccount = false
+
+    // Hosted legal documents (also linked from the subscription paywall).
+    private let privacyPolicyURL = URL(string: "https://splitx.salvador-mikel.workers.dev/privacy")!
+    private let termsURL = URL(string: "https://splitx.salvador-mikel.workers.dev/terms")!
+
     var body: some View {
         NavigationStack {
             Form {
@@ -108,6 +116,17 @@ struct SettingsView: View {
                     Text("Groups")
                 }
 
+                // ── About / Legal ──
+                Section("About") {
+                    Link(destination: privacyPolicyURL) {
+                        Label("Privacy Policy", systemImage: "hand.raised")
+                    }
+                    Link(destination: termsURL) {
+                        Label("Terms of Use", systemImage: "doc.text")
+                    }
+                    LabeledContent("Version", value: appVersion)
+                }
+
                 // ── Sign Out ──
                 Section {
                     Button(role: .destructive) {
@@ -115,6 +134,26 @@ struct SettingsView: View {
                     } label: {
                         Text("Sign Out").frame(maxWidth: .infinity, alignment: .center)
                     }
+                }
+
+                // ── Delete Account ──
+                Section {
+                    Button(role: .destructive) {
+                        showDeleteConfirm = true
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if deletingAccount {
+                                ProgressView()
+                            } else {
+                                Text("Delete Account")
+                            }
+                            Spacer()
+                        }
+                    }
+                    .disabled(deletingAccount)
+                } footer: {
+                    Text("Permanently deletes your account and personal data. This can't be undone.")
                 }
             }
             .navigationTitle("Settings")
@@ -126,7 +165,19 @@ struct SettingsView: View {
                 }
             }
             .onAppear { displayNameText = appVM.currentUser?.displayName ?? "" }
+            .alert("Delete Account?", isPresented: $showDeleteConfirm) {
+                Button("Delete", role: .destructive) { deleteAccount() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This permanently deletes your account and personal data. Shared transactions in groups you belong to will remain for the other members. This can't be undone.")
+            }
         }
+    }
+
+    private var appVersion: String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "\(v) (\(b))"
     }
 
     // MARK: - Actions
@@ -158,6 +209,16 @@ struct SettingsView: View {
                 newGroupName = ""
             } catch {}
             creatingGroup = false
+        }
+    }
+
+    private func deleteAccount() {
+        deletingAccount = true
+        Task {
+            await auth.deleteAccount()
+            deletingAccount = false
+            // On success the auth state flips to .signedOut and this view is
+            // torn down automatically; on failure auth.errorMessage is set.
         }
     }
 

@@ -1,0 +1,45 @@
+{
+  "identifier" : "A1B2C3D4",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_applicationInternalID" : "",
+    "_developerTeamID" : "",
+    "_lastSynchronizedDate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "20B9A1C4",
+      "localizations" : [],
+      "name" : "SplitX Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6F3A2B10",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Remove all ads in SplitX",
+              "displayName" : "SplitX Premium",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.splitx.app.premium.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "SplitX Premium Yearly",
+          "subscriptionGroupID" : "20B9A1C4",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : []
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

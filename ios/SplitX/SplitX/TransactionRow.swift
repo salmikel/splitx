@@ -4,6 +4,7 @@ struct TransactionRow: View {
     let transaction: SplitTransaction
     let members: [Profile]
     let currentUserId: UUID?
+    var currencyCode: String = "USD"
 
     private var paidByProfile: Profile? {
         members.first { $0.id == transaction.paidBy }
@@ -57,12 +58,12 @@ struct TransactionRow: View {
 
             // Amount — green for payments, primary for expenses
             VStack(alignment: .trailing, spacing: 2) {
-                Text(transaction.amount, format: .currency(code: "USD"))
+                Text(transaction.amount, format: .currency(code: currencyCode))
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(transaction.type == .payment ? .green : .primary)
                 if let share = myShare, let uid = currentUserId, transaction.paidBy != uid, transaction.type == .expense {
-                    Text("you owe \(share, format: .currency(code: "USD"))")
+                    Text("you owe \(share, format: .currency(code: currencyCode))")
                         .font(.caption2)
                         .foregroundColor(.red)
                 } else if let share = myShare, transaction.paidBy == currentUserId, share > 0, transaction.type == .expense {

@@ -235,7 +235,7 @@ struct PendingTransactionsSection: View {
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text(tx.amount, format: .currency(code: "USD"))
+                            Text(tx.amount, format: .currency(code: appVM.currencyCode))
                                 .fontWeight(.semibold)
                                 .foregroundColor(.orange)
                             Label("Offline", systemImage: "clock")
@@ -314,7 +314,7 @@ struct BalanceRow: View {
 
             Spacer()
 
-            Text(balance.amount, format: .currency(code: "USD"))
+            Text(balance.amount, format: .currency(code: appVM.currencyCode))
                 .fontWeight(.semibold)
                 .foregroundColor(iOwe ? .red : theyOwe ? .green : .primary)
         }
@@ -383,7 +383,8 @@ struct TransactionListSection: View {
                     TransactionRow(
                         transaction: tx,
                         members: appVM.members,
-                        currentUserId: appVM.currentUser?.id
+                        currentUserId: appVM.currentUser?.id,
+                        currencyCode: appVM.currencyCode
                     )
                     // Zero out List's default insets — TransactionRow owns its padding
                     .listRowInsets(EdgeInsets())
