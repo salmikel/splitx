@@ -13,6 +13,14 @@ final class SubscriptionManager: ObservableObject {
     /// local `.storekit` configuration used for testing.
     static let yearlyProductID = "com.splitx.app.premium.yearly"
 
+    /// Free tier: at most this many transactions total. Premium: this many
+    /// transactions per calendar year. Sharing groups (inviting members and
+    /// bulk CSV import) is Premium-only.
+    static let freeTransactionLimit = 20
+    static let premiumYearlyTransactionLimit = 1000
+    /// Free tier is limited to a single group.
+    static let freeGroupLimit = 1
+
     @Published private(set) var product: Product?
     @Published private(set) var isPremium = false
     @Published private(set) var isWorking = false
@@ -32,6 +40,29 @@ final class SubscriptionManager: ObservableObject {
 
     /// Localized price string for the paywall, e.g. "$4.99".
     var displayPrice: String { product?.displayPrice ?? "" }
+
+    // MARK: - Entitlement gating
+
+    /// Whether the user may create another transaction given current counts.
+    /// Free is capped at a total; Premium is capped per year.
+    func canCreateTransaction(totalCount: Int, thisYearCount: Int) -> Bool {
+        isPremium
+            ? thisYearCount < Self.premiumYearlyTransactionLimit
+            : totalCount < Self.freeTransactionLimit
+    }
+
+    /// The active transaction cap, for display in the UI.
+    var transactionLimit: Int {
+        isPremium ? Self.premiumYearlyTransactionLimit : Self.freeTransactionLimit
+    }
+
+    /// Sharing a group (inviting members, bulk import) requires Premium.
+    var canShareGroups: Bool { isPremium }
+
+    /// Whether the user may create another group. Free is capped at one.
+    func canCreateGroup(currentCount: Int) -> Bool {
+        isPremium || currentCount < Self.freeGroupLimit
+    }
 
     // MARK: - Loading
 

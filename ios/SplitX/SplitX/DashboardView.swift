@@ -3,11 +3,13 @@ import SwiftUI
 struct DashboardView: View {
     @EnvironmentObject var appVM: AppViewModel
     @EnvironmentObject var networkMonitor: NetworkMonitor
+    @EnvironmentObject var subscriptions: SubscriptionManager
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var showNewExpense = false
     @State private var showNewPayment = false
     @State private var selectedTransaction: SplitTransaction?
     @State private var showSettings = false
+    @State private var showPaywall = false
 
     var body: some View {
         NavigationStack {
@@ -82,7 +84,22 @@ struct DashboardView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView()
             }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView().environmentObject(subscriptions)
+            }
         }
+    }
+
+    private var atTransactionLimit: Bool {
+        !subscriptions.canCreateTransaction(
+            totalCount: appVM.transactionCount,
+            thisYearCount: appVM.transactionsThisYear
+        )
+    }
+
+    /// Opens the transaction form if under the limit; otherwise the paywall.
+    private func addTransaction(_ open: () -> Void) {
+        if atTransactionLimit { showPaywall = true } else { open() }
     }
 
     // MARK: - Adaptive layout
@@ -165,9 +182,17 @@ struct DashboardView: View {
     private var headerSection: some View {
         VStack(spacing: 16) {
             BalanceSummarySection()
+            if !subscriptions.isPremium {
+                TransactionUsageBadge(
+                    used: appVM.transactionCount,
+                    limit: SubscriptionManager.freeTransactionLimit,
+                    onUpgrade: { showPaywall = true }
+                )
+            }
             ActionButtonsRow(
-                onExpense: { showNewExpense = true },
-                onPayment: { showNewPayment = true }
+                locked: atTransactionLimit,
+                onExpense: { addTransaction { showNewExpense = true } },
+                onPayment: { addTransaction { showNewPayment = true } }
             )
         }
     }
@@ -331,30 +356,54 @@ struct BalanceRow: View {
 // MARK: - Action Buttons
 
 struct ActionButtonsRow: View {
+    var locked: Bool = false
     let onExpense: () -> Void
     let onPayment: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
             Button(action: onExpense) {
-                Label("Expense", systemImage: "plus")
+                Label("Expense", systemImage: locked ? "lock.fill" : "plus")
                     .font(.system(size: 16, weight: .semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color.accentColor)
+                    .background(locked ? Color.gray.opacity(0.35) : Color.accentColor)
                     .foregroundColor(.white)
                     .cornerRadius(12)
             }
             Button(action: onPayment) {
-                Label("Payment", systemImage: "arrow.up")
+                Label("Payment", systemImage: locked ? "lock.fill" : "arrow.up")
                     .font(.system(size: 16, weight: .medium))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(Color(.secondarySystemGroupedBackground))
-                    .foregroundColor(.primary)
+                    .foregroundColor(locked ? .secondary : .primary)
                     .cornerRadius(12)
             }
         }
+    }
+}
+
+// MARK: - Free-tier usage badge
+
+struct TransactionUsageBadge: View {
+    let used: Int
+    let limit: Int
+    let onUpgrade: () -> Void
+
+    var body: some View {
+        let atLimit = used >= limit
+        HStack(spacing: 8) {
+            Image(systemName: atLimit ? "exclamationmark.circle.fill" : "chart.bar.doc.horizontal")
+                .foregroundColor(atLimit ? .orange : .secondary)
+            Text("\(min(used, limit)) / \(limit) free transactions")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+            Spacer()
+            Button("Upgrade", action: onUpgrade)
+                .font(.footnote.weight(.semibold))
+        }
+        .padding(.horizontal, 4)
     }
 }
 

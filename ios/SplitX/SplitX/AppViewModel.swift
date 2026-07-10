@@ -14,11 +14,24 @@ final class AppViewModel: ObservableObject {
     @Published var isSyncing = false
     @Published var errorMessage: String?
 
+    /// Latest connectivity state, mirrored from the NetworkMonitor.
+    private(set) var isOnline = true
+
     /// Transactions captured offline, persisted across launches.
     @Published private(set) var pendingTransactions: [PendingTransaction] = []
 
     /// Currency code of the currently selected group (falls back to USD).
     var currencyCode: String { selectedGroup?.currency ?? "USD" }
+
+    /// Transactions in the selected group (used for the free-tier total cap).
+    var transactionCount: Int { transactions.count }
+
+    /// Transactions dated in the current calendar year (used for the Premium
+    /// yearly cap). Dates are stored as "yyyy-MM-dd", so a prefix match works.
+    var transactionsThisYear: Int {
+        let year = String(Calendar.current.component(.year, from: Date()))
+        return transactions.filter { $0.date.hasPrefix(year) }.count
+    }
 
     private let service = SupabaseService.shared
     private static let pendingQueueKey = "splitx.pendingTransactions"
@@ -64,13 +77,14 @@ final class AppViewModel: ObservableObject {
 
     /// Wire up automatic sync-on-reconnect. Call once from the root view.
     func observeNetwork(_ monitor: NetworkMonitor) {
+        isOnline = monitor.isOnline
         monitor.$isOnline
             .removeDuplicates()
             .dropFirst()          // ignore the initial published value
-            .filter { $0 }        // only react when coming back online
-            .sink { [weak self] _ in
+            .sink { [weak self] online in
                 guard let self else { return }
-                Task { await self.refresh() }
+                self.isOnline = online
+                if online { Task { await self.refresh() } }   // sync on reconnect
             }
             .store(in: &cancellables)
     }
@@ -131,8 +145,19 @@ final class AppViewModel: ObservableObject {
                 )
             }
         } catch {
-            // If we already populated data from cache, don't surface the
-            // network error — the user can work with what they have.
+            // A session whose user no longer exists (e.g. the account was
+            // deleted on another device) still authenticates from the keychain
+            // but can't load a profile, leaving the app in a broken "signed in
+            // with no user" state. If we're definitely online (not a transient
+            // offline error) and have nothing to show, the session is dead —
+            // sign out so the UI returns to login. Guarded by both `isOnline`
+            // and the error type so an offline user is never signed out.
+            if currentUser == nil && groups.isEmpty && isOnline && !(error is URLError) {
+                try? await supabase.auth.signOut()
+                return
+            }
+            // Otherwise (offline / transient) keep whatever we have and surface
+            // the error only if there's nothing cached to show.
             if groups.isEmpty {
                 errorMessage = error.localizedDescription
             }

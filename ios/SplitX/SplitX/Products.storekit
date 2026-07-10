@@ -17,13 +17,13 @@
           "adHocOffers" : [],
           "codeOffers" : [],
           "displayPrice" : "4.99",
-          "familyShareable" : false,
+          "familyShareable" : true,
           "groupNumber" : 1,
           "internalID" : "6F3A2B10",
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Remove all ads in SplitX",
+              "description" : "Share groups and up to 1,000 transactions per year",
               "displayName" : "SplitX Premium",
               "locale" : "en_US"
             }

@@ -4,7 +4,10 @@ import AuthenticationServices
 struct SettingsView: View {
     @EnvironmentObject var appVM: AppViewModel
     @EnvironmentObject var auth: AuthViewModel
+    @EnvironmentObject var subscriptions: SubscriptionManager
     @Environment(\.dismiss) private var dismiss
+
+    @State private var showPaywall = false
 
     @State private var displayNameText = ""
     @State private var savingProfile = false
@@ -108,12 +111,53 @@ struct SettingsView: View {
                             .disabled(creatingGroup || newGroupName.trimmingCharacters(in: .whitespaces).isEmpty)
                         Button("Cancel") { showCreateGroup = false; newGroupName = "" }
                             .foregroundColor(.secondary)
-                    } else {
+                    } else if subscriptions.canCreateGroup(currentCount: appVM.groups.count) {
                         Button("+ New Group") { showCreateGroup = true }
                             .foregroundColor(.accentColor)
+                    } else {
+                        PremiumLockedRow(
+                            title: "New group",
+                            subtitle: "The free plan includes one group.",
+                            onUpgrade: { showPaywall = true }
+                        )
                     }
                 } header: {
                     Text("Groups")
+                }
+
+                // ── Premium ──
+                Section {
+                    if subscriptions.isPremium {
+                        HStack {
+                            Label("SplitX Premium", systemImage: "sparkles")
+                            Spacer()
+                            Text("Active")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                        }
+                    } else {
+                        Button {
+                            showPaywall = true
+                        } label: {
+                            HStack {
+                                Label("Upgrade to SplitX Premium", systemImage: "sparkles")
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        Button("Restore Purchases") {
+                            Task { await subscriptions.restore() }
+                        }
+                        .foregroundColor(.accentColor)
+                    }
+                } header: {
+                    Text("Premium")
+                } footer: {
+                    if !subscriptions.isPremium {
+                        Text("Share groups and add up to 1,000 transactions per year. Shared with your Apple Family.")
+                    }
                 }
 
                 // ── About / Legal ──
@@ -165,6 +209,9 @@ struct SettingsView: View {
                 }
             }
             .onAppear { displayNameText = appVM.currentUser?.displayName ?? "" }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView().environmentObject(subscriptions)
+            }
             .alert("Delete Account?", isPresented: $showDeleteConfirm) {
                 Button("Delete", role: .destructive) { deleteAccount() }
                 Button("Cancel", role: .cancel) {}
@@ -197,6 +244,11 @@ struct SettingsView: View {
 
     private func createGroup() {
         guard let user = appVM.currentUser else { return }
+        guard subscriptions.canCreateGroup(currentCount: appVM.groups.count) else {
+            showCreateGroup = false
+            showPaywall = true
+            return
+        }
         creatingGroup = true
         Task {
             do {

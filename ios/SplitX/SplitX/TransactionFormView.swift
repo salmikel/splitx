@@ -3,8 +3,6 @@ import SwiftUI
 struct TransactionFormView: View {
     @EnvironmentObject var appVM: AppViewModel
     @EnvironmentObject var networkMonitor: NetworkMonitor
-    @EnvironmentObject var subscriptions: SubscriptionManager
-    @EnvironmentObject var adManager: AdManager
     @Environment(\.dismiss) var dismiss
 
     var initialType: TransactionType = .expense
@@ -343,9 +341,6 @@ struct TransactionFormView: View {
                     try await SupabaseService.shared.createTransaction(
                         groupId: groupId, description: description, amount: amount,
                         paidBy: paid, type: type, date: dateStr, splits: splitEntries)
-                    // Free tier: count this completed action toward showing an
-                    // interstitial (never for subscribers). No-op until 2B.
-                    if !subscriptions.isPremium { adManager.registerCompletedAction() }
                 }
                 dismiss()
             } catch {

@@ -18,7 +18,10 @@ struct GroupSettingsView: View {
     let initialGroup: SplitGroup
 
     @EnvironmentObject var appVM: AppViewModel
+    @EnvironmentObject var subscriptions: SubscriptionManager
     @Environment(\.dismiss) private var dismiss
+
+    @State private var showPaywall = false
 
     @State private var group: SplitGroup
     @State private var members: [Profile] = []
@@ -107,6 +110,9 @@ struct GroupSettingsView: View {
         }
         .sheet(item: $memberToRemove) { toRemove in
             removeMemberSheet(for: toRemove)
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView().environmentObject(subscriptions)
         }
         .alert("Delete Group?", isPresented: $showDeleteGroupConfirm) {
             Button("Delete", role: .destructive) { Task { await doDeleteGroup() } }
@@ -330,19 +336,27 @@ struct GroupSettingsView: View {
 
     private var inviteSection: some View {
         Section {
-            HStack {
-                TextField("friend@example.com", text: $inviteEmail)
-                    .keyboardType(.emailAddress)
-                    .autocapitalization(.none)
-                    .autocorrectionDisabled()
-                Button(inviting ? "Sending…" : "Invite") { sendInvite() }
-                    .disabled(inviting || !inviteEmail.contains("@"))
-                    .foregroundColor(.accentColor)
-            }
-            if let msg = inviteMessage {
-                Text(msg)
-                    .font(.caption)
-                    .foregroundColor(msg.starts(with: "Error") ? .red : .green)
+            if subscriptions.canShareGroups {
+                HStack {
+                    TextField("friend@example.com", text: $inviteEmail)
+                        .keyboardType(.emailAddress)
+                        .autocapitalization(.none)
+                        .autocorrectionDisabled()
+                    Button(inviting ? "Sending…" : "Invite") { sendInvite() }
+                        .disabled(inviting || !inviteEmail.contains("@"))
+                        .foregroundColor(.accentColor)
+                }
+                if let msg = inviteMessage {
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundColor(msg.starts(with: "Error") ? .red : .green)
+                }
+            } else {
+                PremiumLockedRow(
+                    title: "Invite members",
+                    subtitle: "Group sharing is a Premium feature.",
+                    onUpgrade: { showPaywall = true }
+                )
             }
         } header: {
             Text("Invite Members")
@@ -390,8 +404,16 @@ struct GroupSettingsView: View {
         }
     }
 
+    @ViewBuilder
     private var importSection: some View {
         Section {
+            if !subscriptions.canShareGroups {
+                PremiumLockedRow(
+                    title: "Import from CSV",
+                    subtitle: "Bulk import is a Premium feature.",
+                    onUpgrade: { showPaywall = true }
+                )
+            } else {
             // Group selector — only when user belongs to multiple groups
             if allGroups.count > 1 {
                 Picker("Import into", selection: $csvTargetGroupId) {
@@ -418,6 +440,7 @@ struct GroupSettingsView: View {
                 }
             }
             .padding(.vertical, 4)
+            }
         } header: {
             Text("Import CSV")
         }
@@ -756,5 +779,36 @@ struct GroupSettingsView: View {
         }
         fields.append(field.trimmingCharacters(in: .whitespaces))
         return fields
+    }
+}
+
+// MARK: - Premium Locked Row
+
+/// Grayed-out placeholder shown in place of a Premium-only feature for free
+/// users, with an upgrade call to action.
+struct PremiumLockedRow: View {
+    let title: String
+    let subtitle: String
+    let onUpgrade: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "lock.fill")
+                    .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).foregroundColor(.secondary)
+                    Text(subtitle).font(.caption).foregroundColor(.secondary)
+                }
+                Spacer()
+            }
+            Button(action: onUpgrade) {
+                Label("Upgrade to Premium", systemImage: "sparkles")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+        .padding(.vertical, 4)
     }
 }

@@ -18,7 +18,7 @@ struct PaywallView: View {
                             .foregroundColor(.accentColor)
                         Text("SplitX Premium")
                             .font(.title.bold())
-                        Text("Enjoy SplitX with no ads.")
+                        Text("Share groups and track more together.")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -26,9 +26,9 @@ struct PaywallView: View {
 
                     // Benefits
                     VStack(alignment: .leading, spacing: 14) {
-                        benefit("rectangle.slash", "Remove all ads")
-                        benefit("bolt.fill", "Support ongoing development")
-                        benefit("checkmark.seal.fill", "Everything in the free version")
+                        benefit("person.2.fill", "Share groups with others")
+                        benefit("list.bullet.rectangle.fill", "Up to 1,000 transactions per year")
+                        benefit("figure.2.and.child.holdinghands", "Shared with your Apple Family")
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(20)

@@ -35,16 +35,26 @@ final class AuthViewModel: ObservableObject {
 
     func checkSession() async {
         // authStateChanges fires .initialSession synchronously from the local
-        // keychain — no network call required, so this works offline too.
+        // keychain — no network call required, so this works offline too. We
+        // keep listening (rather than returning after the first event) so a
+        // sign-out from anywhere — including a dead session being cleared —
+        // reliably returns the UI to the login screen. Sign-in flows manage
+        // their own state transitions, so we only react to these two events.
         for await (event, session) in supabase.auth.authStateChanges {
-            guard case .initialSession = event else { continue }
-            if session != nil {
-                hasAppleLinked = await appleIsLinked()
-                state = .signedIn
-            } else {
+            switch event {
+            case .initialSession:
+                if session != nil {
+                    hasAppleLinked = await appleIsLinked()
+                    state = .signedIn
+                } else {
+                    state = .signedOut
+                }
+            case .signedOut:
+                hasAppleLinked = false
                 state = .signedOut
+            default:
+                break
             }
-            return
         }
     }
 
