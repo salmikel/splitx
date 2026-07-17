@@ -37,29 +37,50 @@ struct PaywallView: View {
 
                     // Subscribe
                     VStack(spacing: 8) {
-                        Button {
-                            Task {
-                                let ok = await subscriptions.purchase()
-                                if ok { dismiss() }
-                            }
-                        } label: {
-                            Group {
-                                if subscriptions.isWorking {
-                                    ProgressView().tint(.white)
-                                } else if subscriptions.displayPrice.isEmpty {
-                                    Text("Subscribe")
-                                } else {
-                                    Text("Subscribe — \(subscriptions.displayPrice)/year")
+                        if subscriptions.product == nil {
+                            // Product failed to load: not yet in App Store Connect,
+                            // not signed into a (sandbox) App Store account, or offline.
+                            Text("Subscription is unavailable right now. Make sure you're signed into your App Store account, then try again.")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button {
+                                Task { await subscriptions.loadProducts() }
+                            } label: {
+                                Group {
+                                    if subscriptions.isWorking { ProgressView() } else { Text("Retry") }
                                 }
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color.accentColor)
+                                .cornerRadius(14)
                             }
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color.accentColor)
-                            .cornerRadius(14)
+                            .disabled(subscriptions.isWorking)
+                        } else {
+                            Button {
+                                Task {
+                                    let ok = await subscriptions.purchase()
+                                    if ok { dismiss() }
+                                }
+                            } label: {
+                                Group {
+                                    if subscriptions.isWorking {
+                                        ProgressView().tint(.white)
+                                    } else {
+                                        Text("Subscribe — \(subscriptions.displayPrice)/year")
+                                    }
+                                }
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(Color.accentColor)
+                                .cornerRadius(14)
+                            }
+                            .disabled(subscriptions.isWorking)
                         }
-                        .disabled(subscriptions.isWorking || subscriptions.product == nil)
 
                         Button("Restore Purchases") {
                             Task { await subscriptions.restore() }

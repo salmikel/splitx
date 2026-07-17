@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Profile, Group, GroupMember, Invitation } from '@/lib/types'
-import { displayName } from '@/lib/utils'
+import { displayName, isPremium } from '@/lib/utils'
 
 export default function GroupSettingsPage() {
   const router = useRouter()
@@ -113,7 +113,10 @@ export default function GroupSettingsPage() {
     await load()
   }
 
+  const premium = isPremium(currentUser)
+
   async function handleInvite(e: React.FormEvent) {
+    if (!premium) return
     e.preventDefault()
     if (!inviteEmail.trim() || !group) return
     setInviting(true); setInviteMsg('')
@@ -277,6 +280,7 @@ export default function GroupSettingsPage() {
   }
 
   async function handleCSV(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!premium) { setCsvMsg('Error: Bulk import is a Premium feature. Subscribe in the SplitX iOS app.'); return }
     const file = e.target.files?.[0]
     if (!file) return
     setCsvFileName(file.name)
@@ -487,19 +491,25 @@ export default function GroupSettingsPage() {
 
         {/* ── Invite ── */}
         <div className="section-header" style={{ paddingLeft: 0, marginTop: 20 }}>Invite Members</div>
-        <form onSubmit={handleInvite}>
-          <div className="card" style={{ marginBottom: 8 }}>
-            <div className="list-row" style={{ cursor: 'default' }}>
-              <input className="ios-input" type="email" inputMode="email" placeholder="friend@example.com"
-                value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} />
-            </div>
-          </div>
-          <button className="btn-primary" type="submit" disabled={inviting || !inviteEmail.trim()} style={{ marginBottom: 8 }}>
-            {inviting ? 'Sending…' : 'Send Invite'}
-          </button>
-        </form>
-        {inviteMsg && (
-          <p style={{ fontSize: 13, color: inviteMsg.startsWith('Error') ? 'var(--ios-red)' : 'var(--ios-green)', marginBottom: 12 }}>{inviteMsg}</p>
+        {premium ? (
+          <>
+            <form onSubmit={handleInvite}>
+              <div className="card" style={{ marginBottom: 8 }}>
+                <div className="list-row" style={{ cursor: 'default' }}>
+                  <input className="ios-input" type="email" inputMode="email" placeholder="friend@example.com"
+                    value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} />
+                </div>
+              </div>
+              <button className="btn-primary" type="submit" disabled={inviting || !inviteEmail.trim()} style={{ marginBottom: 8 }}>
+                {inviting ? 'Sending…' : 'Send Invite'}
+              </button>
+            </form>
+            {inviteMsg && (
+              <p style={{ fontSize: 13, color: inviteMsg.startsWith('Error') ? 'var(--ios-red)' : 'var(--ios-green)', marginBottom: 12 }}>{inviteMsg}</p>
+            )}
+          </>
+        ) : (
+          <PremiumLocked note="Group sharing is a Premium feature." />
         )}
 
         {/* ── Pending Invites ── */}
@@ -539,6 +549,9 @@ export default function GroupSettingsPage() {
 
         {/* ── CSV Import ── */}
         <div className="section-header" style={{ paddingLeft: 0, marginTop: 12 }}>Import CSV</div>
+        {!premium ? (
+          <PremiumLocked note="Bulk import is a Premium feature." />
+        ) : (
         <div className="card" style={{ marginBottom: 8 }}>
           <div style={{ padding: 16 }}>
             {allGroups.length > 1 && (
@@ -585,6 +598,7 @@ export default function GroupSettingsPage() {
             )}
           </div>
         </div>
+        )}
 
       </div>
 
@@ -657,6 +671,17 @@ export default function GroupSettingsPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function PremiumLocked({ note }: { note: string }) {
+  return (
+    <div className="card" style={{ marginBottom: 12, padding: 16 }}>
+      <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>🔒 Premium feature</div>
+      <p style={{ fontSize: 13, color: 'var(--ios-label-2)', margin: 0, lineHeight: 1.5 }}>
+        {note} Subscribe in the SplitX iOS app — open it and go to Settings → Upgrade.
+      </p>
     </div>
   )
 }

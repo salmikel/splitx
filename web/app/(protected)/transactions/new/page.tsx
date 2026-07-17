@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Profile } from '@/lib/types'
-import { displayName, formatCurrency } from '@/lib/utils'
+import { displayName, formatCurrency, isPremium, FREE_TRANSACTION_LIMIT } from '@/lib/utils'
 
 function NewTransactionForm() {
   const router = useRouter()
@@ -15,6 +15,7 @@ function NewTransactionForm() {
   const supabase = createClient()
   const [currentUser, setCurrentUser] = useState<Profile | null>(null)
   const [members, setMembers] = useState<Profile[]>([])
+  const [txCount, setTxCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -41,6 +42,10 @@ function NewTransactionForm() {
 
       const profiles: Profile[] = (memberRows ?? []).map((m: { profile: Profile }) => m.profile).filter(Boolean)
       setMembers(profiles)
+
+      const { count } = await supabase
+        .from('transactions').select('id', { count: 'exact', head: true }).eq('group_id', groupId)
+      setTxCount(count ?? 0)
 
       // Pre-fill paid-by from group default, else current user
       if (grp?.default_paid_by) setPaidBy(grp.default_paid_by)
@@ -69,8 +74,14 @@ function NewTransactionForm() {
     return Object.values(splits).reduce((sum, v) => sum + (parseFloat(v) || 0), 0)
   }
 
+  const atLimit = !isPremium(currentUser) && txCount >= FREE_TRANSACTION_LIMIT
+
   async function handleSave() {
     setError('')
+    if (atLimit) {
+      setError("You've reached the free limit of 20 transactions. Subscribe in the SplitX iOS app for up to 1,000 per year.")
+      return
+    }
     if (!description.trim()) { setError('Description is required'); return }
     const amt = parseFloat(amount)
     if (!amt || amt <= 0) { setError('Enter a valid amount'); return }
@@ -145,14 +156,22 @@ function NewTransactionForm() {
         </span>
         <button
           onClick={handleSave}
-          disabled={saving}
-          style={{ color: saving ? 'var(--ios-label-3)' : 'var(--ios-blue)', background: 'none', border: 'none', fontSize: 17, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}
+          disabled={saving || atLimit}
+          style={{ color: (saving || atLimit) ? 'var(--ios-label-3)' : 'var(--ios-blue)', background: 'none', border: 'none', fontSize: 17, fontWeight: 600, cursor: (saving || atLimit) ? 'not-allowed' : 'pointer' }}
         >
           {saving ? 'Saving…' : 'Save'}
         </button>
       </div>
 
       <div style={{ padding: '20px 16px', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)' }}>
+        {atLimit && (
+          <div style={{ background: '#fff4e5', border: '0.5px solid #ffcc80', borderRadius: 'var(--radius)', padding: '12px 14px', marginBottom: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#8a5a00', marginBottom: 4 }}>Free limit reached</div>
+            <div style={{ fontSize: 13, color: '#8a5a00', lineHeight: 1.5 }}>
+              You have 20 transactions on the free plan. Subscribe in the SplitX iOS app for up to 1,000 per year.
+            </div>
+          </div>
+        )}
         {/* Type toggle */}
         <div style={{ display: 'flex', background: 'var(--ios-fill)', borderRadius: 8, padding: 2, marginBottom: 24 }}>
           {(['expense', 'payment'] as const).map((t) => (
@@ -297,7 +316,7 @@ function NewTransactionForm() {
           <p style={{ color: 'var(--ios-red)', fontSize: 13, marginBottom: 16 }}>{error}</p>
         )}
 
-        <button className="btn-primary" onClick={handleSave} disabled={saving}>
+        <button className="btn-primary" onClick={handleSave} disabled={saving || atLimit}>
           {saving ? 'Saving…' : type === 'expense' ? 'Add Expense' : 'Record Payment'}
         </button>
       </div>

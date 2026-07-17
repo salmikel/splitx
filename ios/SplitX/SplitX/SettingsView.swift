@@ -27,6 +27,7 @@ struct SettingsView: View {
     // Hosted legal documents (also linked from the subscription paywall).
     private let privacyPolicyURL = URL(string: "https://splitx.salvador-mikel.workers.dev/privacy")!
     private let termsURL = URL(string: "https://splitx.salvador-mikel.workers.dev/terms")!
+    private let supportURL = URL(string: "https://splitx.salvador-mikel.workers.dev/support")!
 
     var body: some View {
         NavigationStack {
@@ -162,6 +163,9 @@ struct SettingsView: View {
 
                 // ── About / Legal ──
                 Section("About") {
+                    Link(destination: supportURL) {
+                        Label("Help & Support", systemImage: "lifepreserver")
+                    }
                     Link(destination: privacyPolicyURL) {
                         Label("Privacy Policy", systemImage: "hand.raised")
                     }

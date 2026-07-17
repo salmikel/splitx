@@ -19,6 +19,7 @@ final class NotificationManager: NSObject, ObservableObject {
     static let shared = NotificationManager()
 
     private var realtimeTask: Task<Void, Never>?
+    private var realtimeChannel: RealtimeChannelV2?
 
     override private init() {
         super.init()
@@ -47,7 +48,12 @@ final class NotificationManager: NSObject, ObservableObject {
         let userIdStr = userId.uuidString.lowercased()
 
         realtimeTask = Task {
-            let channel = supabase.channel("splitx-notifications-\(userIdStr)")
+            // Unique topic per subscription. `channel(_:)` caches by topic, so
+            // reusing a stable topic can return an already-subscribed channel —
+            // and adding postgres_changes after `subscribe()` both warns and
+            // silently fails to register. The channel is removed in stopListening.
+            let channel = supabase.channel("splitx-notifications-\(userIdStr)-\(UUID().uuidString)")
+            self.realtimeChannel = channel
 
             let txStream     = channel.postgresChange(InsertAction.self, schema: "public", table: "transactions")
             let inviteStream = channel.postgresChange(InsertAction.self, schema: "public", table: "invitations")
@@ -102,6 +108,10 @@ final class NotificationManager: NSObject, ObservableObject {
     func stopListening() {
         realtimeTask?.cancel()
         realtimeTask = nil
+        if let channel = realtimeChannel {
+            realtimeChannel = nil
+            Task { await supabase.removeChannel(channel) }   // drop it from the client's cache
+        }
     }
 
     // MARK: - Fire local notification

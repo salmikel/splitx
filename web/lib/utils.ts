@@ -79,3 +79,14 @@ export function displayName(profile: Profile | undefined | null): string {
   if (!profile) return 'Unknown'
   return profile.display_name || profile.email.split('@')[0]
 }
+
+// MARK: - Free / Premium limits (must mirror the iOS SubscriptionManager)
+
+export const FREE_GROUP_LIMIT = 1
+export const FREE_TRANSACTION_LIMIT = 20
+
+/// Premium is derived from the entitlement the iOS app syncs to the profile.
+/// Subscriptions can only be purchased in the iOS app.
+export function isPremium(profile: Profile | null | undefined): boolean {
+  return !!profile?.premium_until && new Date(profile.premium_until).getTime() > Date.now()
+}

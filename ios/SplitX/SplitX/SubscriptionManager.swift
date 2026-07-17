@@ -34,6 +34,15 @@ final class SubscriptionManager: ObservableObject {
             await loadProducts()
             await refreshEntitlements()
         }
+        // Re-sync the entitlement to the profile whenever a user signs in, so a
+        // subscriber (or an Apple Family member) is recognized on the web too.
+        Task { [weak self] in
+            for await (event, session) in supabase.auth.authStateChanges {
+                if session != nil, event == .signedIn || event == .initialSession {
+                    await self?.refreshEntitlements()
+                }
+            }
+        }
     }
 
     deinit { updatesTask?.cancel() }
@@ -67,9 +76,13 @@ final class SubscriptionManager: ObservableObject {
     // MARK: - Loading
 
     func loadProducts() async {
+        errorMessage = nil
         do {
             let products = try await Product.products(for: [Self.yearlyProductID])
             product = products.first
+            if product == nil {
+                errorMessage = "Couldn't find \u{201C}\(Self.yearlyProductID)\u{201D} in the store. Check that the subscription exists in App Store Connect with that exact ID and is \u{201C}Ready to Submit,\u{201D} and that the Paid Apps agreement is active. New products can take a few hours to appear."
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -78,14 +91,27 @@ final class SubscriptionManager: ObservableObject {
     /// Recomputes `isPremium` from the current entitlements.
     func refreshEntitlements() async {
         var active = false
+        var expiry: Date?
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
             if transaction.productID == Self.yearlyProductID,
                transaction.revocationDate == nil {
                 active = true
+                if let exp = transaction.expirationDate {
+                    expiry = max(expiry ?? exp, exp)
+                }
             }
         }
         isPremium = active
+        await syncEntitlementToProfile(active: active, expiry: expiry)
+    }
+
+    /// Mirrors the current entitlement to the signed-in user's profile so the
+    /// web app applies the same limits. No-op when signed out.
+    private func syncEntitlementToProfile(active: Bool, expiry: Date?) async {
+        guard let userId = supabase.auth.currentUser?.id else { return }
+        let until = active ? (expiry ?? Date().addingTimeInterval(400 * 24 * 60 * 60)) : nil
+        try? await SupabaseService.shared.updatePremiumUntil(id: userId, until: until)
     }
 
     // MARK: - Purchase / restore
@@ -101,7 +127,13 @@ final class SubscriptionManager: ObservableObject {
         defer { isWorking = false }
 
         do {
-            let result = try await product.purchase()
+            // Tag the purchase with the user's Supabase UUID so App Store Server
+            // Notifications can map the entitlement back to this account.
+            var options: Set<Product.PurchaseOption> = []
+            if let userId = supabase.auth.currentUser?.id {
+                options.insert(.appAccountToken(userId))
+            }
+            let result = try await product.purchase(options: options)
             switch result {
             case .success(let verification):
                 guard case .verified(let transaction) = verification else {

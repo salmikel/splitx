@@ -25,6 +25,16 @@ struct TransactionRow: View {
         return splits.first { $0.userId == uid }?.amount
     }
 
+    /// When the current user paid, how much the others collectively owe them
+    /// (the total minus the payer's own share). Nil if not applicable.
+    private var othersOweMe: Double? {
+        guard let uid = currentUserId,
+              transaction.paidBy == uid,
+              transaction.type == .expense else { return nil }
+        let owed = transaction.amount - (myShare ?? 0)
+        return owed > 0.01 ? owed : nil
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             // Icon
@@ -66,8 +76,8 @@ struct TransactionRow: View {
                     Text("you owe \(share, format: .currency(code: currencyCode))")
                         .font(.caption2)
                         .foregroundColor(.red)
-                } else if let share = myShare, transaction.paidBy == currentUserId, share > 0, transaction.type == .expense {
-                    Text("others owe you")
+                } else if let owed = othersOweMe {
+                    Text("others owe you \(owed, format: .currency(code: currencyCode))")
                         .font(.caption2)
                         .foregroundColor(.green)
                 }

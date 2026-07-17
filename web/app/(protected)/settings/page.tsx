@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Profile, Group, GroupMember } from '@/lib/types'
-import { displayName } from '@/lib/utils'
+import { displayName, isPremium, FREE_GROUP_LIMIT } from '@/lib/utils'
 import BottomNav from '@/components/BottomNav'
 
 const STORAGE_KEY = 'splitx_active_group'
@@ -26,6 +26,11 @@ function SettingsContent() {
   const [newGroupName, setNewGroupName] = useState('')
   const [savingGroup, setSavingGroup] = useState(false)
   const [groupError, setGroupError] = useState('')
+
+  // Delete account
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   async function load() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -61,6 +66,10 @@ function SettingsContent() {
     e.preventDefault()
     setGroupError('')
     if (!newGroupName.trim()) return
+    if (!isPremium(currentUser) && groups.length >= FREE_GROUP_LIMIT) {
+      setGroupError('The free plan includes one group. Subscribe in the SplitX iOS app for more.')
+      return
+    }
     setSavingGroup(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setGroupError('Not signed in.'); setSavingGroup(false); return }
@@ -83,6 +92,21 @@ function SettingsContent() {
   }
 
   async function handleSignOut() {
+    await supabase.auth.signOut()
+    router.push('/auth/login')
+  }
+
+  async function handleDeleteAccount() {
+    setDeletingAccount(true)
+    setDeleteError('')
+    // Same edge function the iOS app uses; the browser session attaches the
+    // user's token, and the function deletes only that user (RLS cascades).
+    const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' })
+    if (error) {
+      setDeleteError(error.message || 'Could not delete your account. Please try again.')
+      setDeletingAccount(false)
+      return
+    }
     await supabase.auth.signOut()
     router.push('/auth/login')
   }
@@ -137,12 +161,14 @@ function SettingsContent() {
         {/* ── Groups ── */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <div className="section-header" style={{ paddingLeft: 0, marginBottom: 0 }}>Groups</div>
-          <button
-            onClick={() => { setShowCreateGroup(v => !v); setGroupError('') }}
-            style={{ background: 'none', border: 'none', color: 'var(--ios-blue)', fontSize: 15, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
-          >
-            {showCreateGroup ? 'Cancel' : '+ New Group'}
-          </button>
+          {(isPremium(currentUser) || groups.length < FREE_GROUP_LIMIT) && (
+            <button
+              onClick={() => { setShowCreateGroup(v => !v); setGroupError('') }}
+              style={{ background: 'none', border: 'none', color: 'var(--ios-blue)', fontSize: 15, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              {showCreateGroup ? 'Cancel' : '+ New Group'}
+            </button>
+          )}
         </div>
 
         {showCreateGroup && (
@@ -183,6 +209,26 @@ function SettingsContent() {
           )
         )}
 
+        {/* ── Subscription ── */}
+        <div className="section-header" style={{ paddingLeft: 0 }}>Subscription</div>
+        <div className="card" style={{ marginBottom: 28, padding: 16 }}>
+          {isPremium(currentUser) ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 15, fontWeight: 500 }}>✨ SplitX Premium</span>
+              <span style={{ fontSize: 13, color: '#34c759', fontWeight: 500 }}>Active</span>
+            </div>
+          ) : (
+            <>
+              <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>Upgrade to SplitX Premium</div>
+              <p style={{ fontSize: 14, color: 'var(--ios-label-2)', margin: 0, lineHeight: 1.5 }}>
+                Share groups and add up to 1,000 transactions per year, shared with your Apple Family.
+                Subscriptions are available in the <strong>SplitX iOS app</strong> — open it on your iPhone
+                and go to <strong>Settings → Upgrade to SplitX Premium</strong>.
+              </p>
+            </>
+          )}
+        </div>
+
         {/* ── Sign out ── */}
         <div style={{ marginTop: 16 }}>
           <button onClick={handleSignOut} style={{
@@ -192,6 +238,38 @@ function SettingsContent() {
           }}>
             Sign Out
           </button>
+        </div>
+
+        {/* ── Delete account ── */}
+        <div style={{ marginTop: 12 }}>
+          {!confirmingDelete ? (
+            <button onClick={() => { setConfirmingDelete(true); setDeleteError('') }} style={{
+              width: '100%', padding: '14px', background: 'none', border: 'none',
+              color: 'var(--ios-red)', fontSize: 15, cursor: 'pointer', fontFamily: 'inherit',
+            }}>
+              Delete Account
+            </button>
+          ) : (
+            <div className="card" style={{ padding: 16 }}>
+              <p style={{ fontSize: 14, color: 'var(--ios-label-2)', margin: '0 0 12px', lineHeight: 1.5 }}>
+                This permanently deletes your account and personal data. Shared transactions in groups you belong to will remain for the other members. This can&apos;t be undone.
+              </p>
+              <button onClick={handleDeleteAccount} disabled={deletingAccount} style={{
+                width: '100%', padding: '14px', background: 'var(--ios-red)', border: 'none',
+                borderRadius: 'var(--radius)', color: '#fff', fontSize: 17, fontWeight: 600,
+                cursor: deletingAccount ? 'default' : 'pointer', fontFamily: 'inherit', marginBottom: 8, opacity: deletingAccount ? 0.7 : 1,
+              }}>
+                {deletingAccount ? 'Deleting…' : 'Permanently Delete Account'}
+              </button>
+              <button onClick={() => setConfirmingDelete(false)} disabled={deletingAccount} style={{
+                width: '100%', padding: '12px', background: 'none', border: 'none',
+                color: 'var(--ios-blue)', fontSize: 15, cursor: 'pointer', fontFamily: 'inherit',
+              }}>
+                Cancel
+              </button>
+              {deleteError && <p style={{ fontSize: 13, color: 'var(--ios-red)', marginTop: 8 }}>{deleteError}</p>}
+            </div>
+          )}
         </div>
       </div>
 

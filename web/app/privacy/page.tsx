@@ -43,19 +43,13 @@ export default function PrivacyPage() {
 
         <h2 style={styles.h2}>Advertising</h2>
         <p style={styles.p}>
-          The free version of SplitX displays ads provided by Google AdMob. AdMob may collect certain device
-          information to deliver and measure ads. We request non-personalized (non-tracking) ads by default.
-          You can remove all ads by subscribing to SplitX Premium. Learn more about how Google uses data at{' '}
-          <a style={styles.a} href="https://policies.google.com/technologies/partner-sites">
-            policies.google.com/technologies/partner-sites
-          </a>.
+          SplitX does not display ads and does not include third-party advertising SDKs.
         </p>
 
         <h2 style={styles.h2}>Service providers</h2>
         <ul style={styles.ul}>
           <li><strong>Supabase</strong> — authentication and database hosting for your account and content.</li>
           <li><strong>Resend</strong> — delivery of invitation emails.</li>
-          <li><strong>Google AdMob</strong> — advertising in the free version.</li>
           <li><strong>Apple</strong> — Sign in with Apple and subscription processing.</li>
         </ul>
 

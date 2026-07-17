@@ -34,7 +34,17 @@ backend (`web/`, `supabase/`). Being prepared for paid App Store release.
 
 - Supabase project ref: `jxcbchqewasrqjatznci` (name "splitx"). Security is
   entirely RLS-based; the hardcoded anon key in `SupabaseService.swift` is public
-  by design. Edge function `delete-account` is deployed (in-app account deletion).
+  by design. Edge functions deployed: `delete-account` (in-app account deletion);
+  `app-store-notifications` (App Store Server Notifications V2 handler,
+  verify_jwt=false, verifies Apple's JWS and writes `profiles.premium_until`).
+- **Premium entitlement sync**: iOS StoreKit is the source of truth on-device;
+  `profiles.premium_until` mirrors it so the web app applies the same free
+  limits. Currently the iOS app writes it (forgeable). To make it tamper-proof:
+  set the ASC App Store Server Notification URL (Production + Sandbox, V2) to
+  `https://jxcbchqewasrqjatznci.supabase.co/functions/v1/app-store-notifications`,
+  verify in sandbox, then apply migration `013_lock_premium_until.sql` AND remove
+  `SubscriptionManager.syncEntitlementToProfile`. iOS purchases set
+  `appAccountToken` = the user's UUID so notifications map to the account.
 - Web app deploys to Cloudflare via `cd web && npm run deploy` (wrangler is
   authenticated locally).
 
