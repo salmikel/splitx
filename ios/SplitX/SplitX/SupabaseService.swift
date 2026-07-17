@@ -60,18 +60,6 @@ final class SupabaseService: ObservableObject {
             .execute()
     }
 
-    /// Persists the user's subscription expiry so the web app can honor the
-    /// same Premium entitlement. StoreKit on-device remains the source of truth.
-    func updatePremiumUntil(id: UUID, until: Date?) async throws {
-        struct PremiumUpdate: Encodable { let premium_until: String? }
-        let iso = until.map { ISO8601DateFormatter().string(from: $0) }
-        try await supabase
-            .from("profiles")
-            .update(PremiumUpdate(premium_until: iso))
-            .eq("id", value: id.uuidString)
-            .execute()
-    }
-
     // MARK: Groups
 
     func fetchGroups(userId: UUID) async throws -> [SplitGroup] {

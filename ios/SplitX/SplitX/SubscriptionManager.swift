@@ -34,8 +34,8 @@ final class SubscriptionManager: ObservableObject {
             await loadProducts()
             await refreshEntitlements()
         }
-        // Re-sync the entitlement to the profile whenever a user signs in, so a
-        // subscriber (or an Apple Family member) is recognized on the web too.
+        // Re-check the StoreKit entitlement whenever a user signs in (e.g. an
+        // Apple Family member on a new device), keeping isPremium current.
         Task { [weak self] in
             for await (event, session) in supabase.auth.authStateChanges {
                 if session != nil, event == .signedIn || event == .initialSession {
@@ -91,27 +91,16 @@ final class SubscriptionManager: ObservableObject {
     /// Recomputes `isPremium` from the current entitlements.
     func refreshEntitlements() async {
         var active = false
-        var expiry: Date?
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result else { continue }
             if transaction.productID == Self.yearlyProductID,
                transaction.revocationDate == nil {
                 active = true
-                if let exp = transaction.expirationDate {
-                    expiry = max(expiry ?? exp, exp)
-                }
             }
         }
         isPremium = active
-        await syncEntitlementToProfile(active: active, expiry: expiry)
-    }
-
-    /// Mirrors the current entitlement to the signed-in user's profile so the
-    /// web app applies the same limits. No-op when signed out.
-    private func syncEntitlementToProfile(active: Bool, expiry: Date?) async {
-        guard let userId = supabase.auth.currentUser?.id else { return }
-        let until = active ? (expiry ?? Date().addingTimeInterval(400 * 24 * 60 * 60)) : nil
-        try? await SupabaseService.shared.updatePremiumUntil(id: userId, until: until)
+        // Note: profiles.premium_until (which the web reads) is written server
+        // side by the verified App Store Server Notification, not the client.
     }
 
     // MARK: - Purchase / restore
