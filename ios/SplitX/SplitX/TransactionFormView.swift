@@ -1,8 +1,10 @@
 import SwiftUI
+import VisionKit
 
 struct TransactionFormView: View {
     @EnvironmentObject var appVM: AppViewModel
     @EnvironmentObject var networkMonitor: NetworkMonitor
+    @EnvironmentObject var subscriptions: SubscriptionManager
     @Environment(\.dismiss) var dismiss
 
     var initialType: TransactionType = .expense
@@ -19,6 +21,13 @@ struct TransactionFormView: View {
     @State private var errorMessage: String?
     /// Which member's percentage wheel is currently expanded (one at a time)
     @State private var expandedMemberId: UUID?
+
+    // Receipt scanning
+    @State private var showScanner = false
+    @State private var showPaywall = false
+    /// The amount to suggest (scanned total + 20%) when the receipt had no tip.
+    /// Nil hides the suggestion.
+    @State private var tipSuggestionAmount: Double?
 
     private var isEditing: Bool { existing != nil }
     private var members: [Profile] { appVM.members }
@@ -48,6 +57,26 @@ struct TransactionFormView: View {
 
                 // ── Details ───────────────────────────────────────────
                 Section("Details") {
+                    if type == .expense && VNDocumentCameraViewController.isSupported {
+                        Button {
+                            if subscriptions.isPremium {
+                                showScanner = true
+                            } else {
+                                showPaywall = true      // Premium feature
+                            }
+                        } label: {
+                            HStack {
+                                Label("Scan Receipt", systemImage: "doc.text.viewfinder")
+                                if !subscriptions.isPremium {
+                                    Spacer()
+                                    Image(systemName: "lock.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+
                     TextField(
                         type == .expense ? "Description (Dinner, groceries…)" : "Description (Payment to…)",
                         text: $description
@@ -58,6 +87,18 @@ struct TransactionFormView: View {
                         Text(AppCurrency.symbol(for: appVM.currencyCode)).foregroundColor(.secondary)
                         TextField("0.00", text: $amountText)
                             .keyboardType(.decimalPad)
+                    }
+
+                    if let tip = tipSuggestionAmount {
+                        Button {
+                            amountText = String(format: "%.2f", tip)
+                            tipSuggestionAmount = nil
+                        } label: {
+                            Label("Tip not included? Add 20% → \(tip, format: .currency(code: appVM.currencyCode))",
+                                  systemImage: "plus.circle.fill")
+                                .font(.footnote)
+                        }
+                        .foregroundColor(.accentColor)
                     }
 
                     DatePicker("Date", selection: $date, displayedComponents: .date)
@@ -173,6 +214,19 @@ struct TransactionFormView: View {
             }
             .navigationTitle(isEditing ? "Edit Transaction" : (type == .expense ? "New Expense" : "New Payment"))
             .navigationBarTitleDisplayMode(.inline)
+            .fullScreenCover(isPresented: $showScanner) {
+                ReceiptScannerView(
+                    onResult: { receipt in
+                        applyScannedReceipt(receipt)
+                        showScanner = false
+                    },
+                    onCancel: { showScanner = false }
+                )
+                .ignoresSafeArea()
+            }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView().environmentObject(subscriptions)
+            }
             .task {
                 if existing != nil {
                     setupInitialState(groupDefaults: nil)
@@ -278,6 +332,22 @@ struct TransactionFormView: View {
         return Dictionary(uniqueKeysWithValues: members.enumerated().map { i, m in
             (m.id, base + (i < remainder ? 1 : 0))
         })
+    }
+
+    // MARK: - Receipt scanning
+
+    private func applyScannedReceipt(_ receipt: ScannedReceipt) {
+        if let desc = receipt.description?.trimmingCharacters(in: .whitespacesAndNewlines), !desc.isEmpty {
+            description = desc
+        }
+        if let scanned = receipt.amount {
+            amountText = String(format: "%.2f", scanned)
+            // Offer a 20% bump only when the receipt didn't already list a tip.
+            tipSuggestionAmount = receipt.tipIncluded ? nil : (scanned * 1.20)
+        }
+        if let scannedDate = receipt.date {
+            date = scannedDate
+        }
     }
 
     // MARK: - Save / Delete

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3E36CE0F3016DB2F00F28E6B /* ReceiptScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E36CE0E3016DB2F00F28E6B /* ReceiptScanner.swift */; };
 		3E5A45D52FFDF66A007146AF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 3E5A45D22FFDF66A007146AF /* PrivacyInfo.xcprivacy */; };
 		3E5A45D62FFDF66A007146AF /* Products.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 3E5A45D32FFDF66A007146AF /* Products.storekit */; };
 		3E5A45D72FFDF66A007146AF /* AdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E5A45D02FFDF66A007146AF /* AdManager.swift */; };
@@ -31,6 +32,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3E36CE0E3016DB2F00F28E6B /* ReceiptScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptScanner.swift; sourceTree = "<group>"; };
 		3E5A45D02FFDF66A007146AF /* AdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdManager.swift; sourceTree = "<group>"; };
 		3E5A45D12FFDF66A007146AF /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		3E5A45D22FFDF66A007146AF /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -87,6 +89,7 @@
 		AAAA00000000000000000402 /* SplitX */ = {
 			isa = PBXGroup;
 			children = (
+				3E36CE0E3016DB2F00F28E6B /* ReceiptScanner.swift */,
 				3E5A45D02FFDF66A007146AF /* AdManager.swift */,
 				3E5A45D12FFDF66A007146AF /* PaywallView.swift */,
 				3E5A45D22FFDF66A007146AF /* PrivacyInfo.xcprivacy */,
@@ -203,6 +206,7 @@
 				3E5A45D92FFDF66A007146AF /* PaywallView.swift in Sources */,
 				AAAA00000000000000000114 /* TransactionFormView.swift in Sources */,
 				AAAA00000000000000000115 /* SettingsView.swift in Sources */,
+				3E36CE0F3016DB2F00F28E6B /* ReceiptScanner.swift in Sources */,
 				AAAA00000000000000000116 /* TransactionRow.swift in Sources */,
 				AAAA00000000000000000119 /* GroupSettingsView.swift in Sources */,
 				AAAA0000000000000000011A /* NotificationManager.swift in Sources */,
