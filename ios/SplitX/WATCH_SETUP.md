@@ -13,10 +13,10 @@ Watch.
 
 - Bundle ID: `yourcompany.SharedExpenses.watchkitapp`. Team 94PZKL85KB, automatic signing.
 - watchOS 10.0+. No Swift packages: the Watch has no Supabase or ads.
-- **Versions must match the iPhone app.** `SplitX/Info.plist` hard-codes
-  `CFBundleShortVersionString` and `CFBundleVersion`. Bump the same keys in
-  `WatchApp/Info.plist` together with them, or App Store validation rejects the
-  upload.
+- **Versions must match the iPhone app**, or App Store validation rejects the
+  upload. Both Info.plists read `$(MARKETING_VERSION)` and
+  `$(CURRENT_PROJECT_VERSION)`, which are set once at the project level. Bump
+  them in Project ▸ SplitX ▸ Build Settings, not in a target's General tab.
 - The Watch icon is a flattened copy (no alpha channel) of the iOS 1024 icon.
 
 ## Run on your iPhone + Apple Watch

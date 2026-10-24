@@ -45,9 +45,13 @@ backend (`web/`, `supabase/`). Being prepared for paid App Store release.
   in SplitX via an "Embed Watch Content" phase + target dependency. It was added
   by a careful hand edit of `project.pbxproj` (IDs `AAAA…08xx/09xx/0Axx`), not
   xcodegen. Details and device-run steps: `ios/SplitX/WATCH_SETUP.md`.
-- `SplitX/Info.plist` hard-codes the version/build (the `MARKETING_VERSION`
-  build setting is unused). `WatchApp/Info.plist` must carry the **same**
-  `CFBundleShortVersionString`/`CFBundleVersion`, so bump both together.
+- **Versioning:** `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` live only at
+  the **project** level (both targets inherit; both Info.plists read the
+  variables), so the iPhone and Watch apps always match, which App Store
+  validation requires. Bump them in Project ▸ SplitX ▸ Build Settings, *not* a
+  target's General tab (that writes a per-target override and desyncs the
+  Watch). Every upload needs a higher build number. v1.0 (2) is live; current
+  is 1.1 (3).
 
 ## Backend
 
