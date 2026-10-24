@@ -7,6 +7,18 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AAAA00000000000000000800 /* WatchSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA00000000000000000900 /* WatchSessionManager.swift */; };
+		AAAA00000000000000000801 /* WatchSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA00000000000000000901 /* WatchSettingsStore.swift */; };
+		AAAA00000000000000000802 /* WatchSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA00000000000000000902 /* WatchSettingsView.swift */; };
+		AAAA00000000000000000803 /* WatchShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA00000000000000000903 /* WatchShared.swift */; };
+		AAAA00000000000000000804 /* WatchShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA00000000000000000903 /* WatchShared.swift */; };
+		AAAA00000000000000000805 /* SplitXWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA00000000000000000904 /* SplitXWatchApp.swift */; };
+		AAAA00000000000000000806 /* WatchConnectivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA00000000000000000905 /* WatchConnectivityManager.swift */; };
+		AAAA00000000000000000807 /* WatchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA00000000000000000906 /* WatchRootView.swift */; };
+		AAAA00000000000000000808 /* WatchAmountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA00000000000000000907 /* WatchAmountView.swift */; };
+		AAAA00000000000000000809 /* WatchConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA00000000000000000908 /* WatchConfirmationView.swift */; };
+		AAAA0000000000000000080A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AAAA00000000000000000909 /* Assets.xcassets */; };
+		AAAA0000000000000000080B /* SplitXWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = AAAA0000000000000000090A /* SplitXWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		3E36CE0F3016DB2F00F28E6B /* ReceiptScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E36CE0E3016DB2F00F28E6B /* ReceiptScanner.swift */; };
 		3E5A45D52FFDF66A007146AF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 3E5A45D22FFDF66A007146AF /* PrivacyInfo.xcprivacy */; };
 		3E5A45D62FFDF66A007146AF /* Products.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 3E5A45D32FFDF66A007146AF /* Products.storekit */; };
@@ -31,7 +43,43 @@
 		AAAA0000000000000000011B /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAA00000000000000000211 /* NetworkMonitor.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		AAAA00000000000000000A20 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AAAA00000000000000000501 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AAAA00000000000000000A22;
+			remoteInfo = SplitXWatch;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AAAA00000000000000000A13 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				AAAA0000000000000000080B /* SplitXWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		AAAA00000000000000000900 /* WatchSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSessionManager.swift; sourceTree = "<group>"; };
+		AAAA00000000000000000901 /* WatchSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSettingsStore.swift; sourceTree = "<group>"; };
+		AAAA00000000000000000902 /* WatchSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSettingsView.swift; sourceTree = "<group>"; };
+		AAAA00000000000000000903 /* WatchShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchShared.swift; sourceTree = "<group>"; };
+		AAAA00000000000000000904 /* SplitXWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitXWatchApp.swift; sourceTree = "<group>"; };
+		AAAA00000000000000000905 /* WatchConnectivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnectivityManager.swift; sourceTree = "<group>"; };
+		AAAA00000000000000000906 /* WatchRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchRootView.swift; sourceTree = "<group>"; };
+		AAAA00000000000000000907 /* WatchAmountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchAmountView.swift; sourceTree = "<group>"; };
+		AAAA00000000000000000908 /* WatchConfirmationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConfirmationView.swift; sourceTree = "<group>"; };
+		AAAA00000000000000000909 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AAAA0000000000000000090A /* SplitXWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SplitXWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAAA0000000000000000090B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		3E36CE0E3016DB2F00F28E6B /* ReceiptScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptScanner.swift; sourceTree = "<group>"; };
 		3E5A45D02FFDF66A007146AF /* AdManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdManager.swift; sourceTree = "<group>"; };
 		3E5A45D12FFDF66A007146AF /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
@@ -59,6 +107,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		AAAA00000000000000000A11 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		AAAA00000000000000000300 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -74,6 +129,8 @@
 			isa = PBXGroup;
 			children = (
 				AAAA00000000000000000402 /* SplitX */,
+				AAAA00000000000000000A00 /* Shared */,
+				AAAA00000000000000000A01 /* WatchApp */,
 				AAAA00000000000000000401 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -82,6 +139,7 @@
 			isa = PBXGroup;
 			children = (
 				AAAA0000000000000000020D /* SplitX.app */,
+				AAAA0000000000000000090A /* SplitXWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -109,6 +167,9 @@
 				AAAA0000000000000000020E /* GroupSettingsView.swift */,
 				AAAA0000000000000000020F /* NotificationManager.swift */,
 				AAAA00000000000000000211 /* NetworkMonitor.swift */,
+				AAAA00000000000000000900 /* WatchSessionManager.swift */,
+				AAAA00000000000000000901 /* WatchSettingsStore.swift */,
+				AAAA00000000000000000902 /* WatchSettingsView.swift */,
 				AAAA00000000000000000210 /* SplitX.entitlements */,
 				AAAA0000000000000000020B /* Assets.xcassets */,
 				AAAA0000000000000000020C /* Info.plist */,
@@ -116,9 +177,48 @@
 			path = SplitX;
 			sourceTree = "<group>";
 		};
+		AAAA00000000000000000A00 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				AAAA00000000000000000903 /* WatchShared.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		AAAA00000000000000000A01 /* WatchApp */ = {
+			isa = PBXGroup;
+			children = (
+				AAAA00000000000000000904 /* SplitXWatchApp.swift */,
+				AAAA00000000000000000905 /* WatchConnectivityManager.swift */,
+				AAAA00000000000000000906 /* WatchRootView.swift */,
+				AAAA00000000000000000907 /* WatchAmountView.swift */,
+				AAAA00000000000000000908 /* WatchConfirmationView.swift */,
+				AAAA00000000000000000909 /* Assets.xcassets */,
+				AAAA0000000000000000090B /* Info.plist */,
+			);
+			path = WatchApp;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		AAAA00000000000000000A22 /* SplitXWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AAAA00000000000000000A32 /* Build configuration list for PBXNativeTarget "SplitXWatch" */;
+			buildPhases = (
+				AAAA00000000000000000A10 /* Sources */,
+				AAAA00000000000000000A11 /* Frameworks */,
+				AAAA00000000000000000A12 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SplitXWatch;
+			productName = SplitXWatch;
+			productReference = AAAA0000000000000000090A /* SplitXWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
 		AAAA00000000000000000500 /* SplitX */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = AAAA00000000000000000605 /* Build configuration list for PBXNativeTarget "SplitX" */;
@@ -126,10 +226,12 @@
 				AAAA00000000000000000302 /* Sources */,
 				AAAA00000000000000000300 /* Frameworks */,
 				AAAA00000000000000000301 /* Resources */,
+				AAAA00000000000000000A13 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				AAAA00000000000000000A21 /* PBXTargetDependency */,
 			);
 			name = SplitX;
 			packageProductDependencies = (
@@ -152,6 +254,9 @@
 					AAAA00000000000000000500 = {
 						CreatedOnToolsVersion = 15.0;
 					};
+					AAAA00000000000000000A22 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 				};
 			};
 			buildConfigurationList = AAAA00000000000000000604 /* Build configuration list for PBXProject "SplitX" */;
@@ -171,11 +276,20 @@
 			projectRoot = "";
 			targets = (
 				AAAA00000000000000000500 /* SplitX */,
+				AAAA00000000000000000A22 /* SplitXWatch */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		AAAA00000000000000000A12 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAAA0000000000000000080A /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		AAAA00000000000000000301 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -189,6 +303,19 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		AAAA00000000000000000A10 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAAA00000000000000000805 /* SplitXWatchApp.swift in Sources */,
+				AAAA00000000000000000806 /* WatchConnectivityManager.swift in Sources */,
+				AAAA00000000000000000807 /* WatchRootView.swift in Sources */,
+				AAAA00000000000000000808 /* WatchAmountView.swift in Sources */,
+				AAAA00000000000000000809 /* WatchConfirmationView.swift in Sources */,
+				AAAA00000000000000000804 /* WatchShared.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		AAAA00000000000000000302 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -211,12 +338,80 @@
 				AAAA00000000000000000119 /* GroupSettingsView.swift in Sources */,
 				AAAA0000000000000000011A /* NotificationManager.swift in Sources */,
 				AAAA0000000000000000011B /* NetworkMonitor.swift in Sources */,
+				AAAA00000000000000000800 /* WatchSessionManager.swift in Sources */,
+				AAAA00000000000000000801 /* WatchSettingsStore.swift in Sources */,
+				AAAA00000000000000000802 /* WatchSettingsView.swift in Sources */,
+				AAAA00000000000000000803 /* WatchShared.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		AAAA00000000000000000A21 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AAAA00000000000000000A22 /* SplitXWatch */;
+			targetProxy = AAAA00000000000000000A20 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		AAAA00000000000000000A30 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 94PZKL85KB;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WatchApp/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = yourcompany.SharedExpenses.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		AAAA00000000000000000A31 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 94PZKL85KB;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WatchApp/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = yourcompany.SharedExpenses.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 		AAAA00000000000000000600 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -377,6 +572,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		AAAA00000000000000000A32 /* Build configuration list for PBXNativeTarget "SplitXWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAAA00000000000000000A30 /* Debug */,
+				AAAA00000000000000000A31 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		AAAA00000000000000000604 /* Build configuration list for PBXProject "SplitX" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
