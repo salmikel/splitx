@@ -262,6 +262,135 @@ final class AppViewModel: ObservableObject {
         return didSync
     }
 
+    // MARK: - Apple Watch
+
+    /// The configuration pushed to the Watch. The Watch group only counts as
+    /// configured while the user is still a member of it.
+    func watchConfig(settings: WatchSettingsStore, isPremium: Bool) -> WatchConfig {
+        guard currentUser != nil,
+              let group = groups.first(where: { $0.id == settings.groupId }) else {
+            return WatchConfig(isPremium: currentUser != nil && isPremium, groupId: nil,
+                               groupName: "", currencyCode: "USD", currencySymbol: "$")
+        }
+        return WatchConfig(
+            isPremium: isPremium,
+            groupId: group.id,
+            groupName: group.name,
+            currencyCode: group.currency,
+            currencySymbol: AppCurrency.symbol(for: group.currency)
+        )
+    }
+
+    /// Saves an expense captured on the Apple Watch into the group it was
+    /// logged against, using the paid-by and split allocation from the Watch
+    /// settings. Premium and the transaction cap are re-checked here so a stale
+    /// Watch configuration can never bypass the paywall.
+    func saveWatchExpense(_ expense: WatchExpense,
+                          settings: WatchSettingsStore,
+                          subscriptions: SubscriptionManager) async {
+        // A queued transfer can wake the app before launch work has finished.
+        await subscriptions.refreshEntitlements()
+        if groups.isEmpty { await load() }
+
+        guard let user = supabase.auth.currentUser else { return }
+        guard subscriptions.isPremium else {
+            await reportWatchFailure(expense, reason: "Apple Watch logging requires SplitX Premium.")
+            return
+        }
+        guard let group = groups.first(where: { $0.id == expense.groupId }) else {
+            await reportWatchFailure(expense, reason: "You're no longer a member of that group.")
+            return
+        }
+
+        let isSelected = group.id == selectedGroup?.id
+        let groupMembers = isSelected ? members : (try? await service.fetchMembers(groupId: group.id))
+        let groupTransactions = isSelected ? transactions : (try? await service.fetchTransactions(groupId: group.id))
+        if let groupTransactions {
+            let year = String(Calendar.current.component(.year, from: Date()))
+            let thisYear = groupTransactions.filter { $0.date.hasPrefix(year) }.count
+            guard subscriptions.canCreateTransaction(totalCount: groupTransactions.count,
+                                                     thisYearCount: thisYear) else {
+                await reportWatchFailure(expense, reason: "You've reached your yearly transaction limit.")
+                return
+            }
+        }
+
+        let memberIds = groupMembers?.map(\.id)
+        let usesWatchDefaults = settings.groupId == group.id
+        var paidBy = (usesWatchDefaults ? settings.paidBy : nil) ?? group.defaultPaidBy ?? user.id
+        if let memberIds, !memberIds.contains(paidBy) { paidBy = user.id }
+        let percentages = Self.watchSplitPercentages(
+            preferred: usesWatchDefaults ? settings.splits : [:],
+            groupDefaults: group.defaultSplits,
+            memberIds: memberIds,
+            fallbackUser: user.id
+        )
+        let splits = percentages.map { (userId: $0.key, percentage: $0.value,
+                                        amount: ($0.value / 100.0) * expense.amount) }
+        let date = DateFormatter.isoDate.string(from: expense.createdAt)
+
+        let pending = PendingTransaction(
+            id: expense.id, groupId: group.id, description: expense.description,
+            amount: expense.amount, paidBy: paidBy, type: .expense, date: date,
+            splits: splits.map {
+                PendingTransaction.SplitEntry(userId: $0.userId, percentage: $0.percentage, amount: $0.amount)
+            },
+            queuedAt: Date()
+        )
+        guard isOnline else { enqueuePending(pending); return }
+
+        do {
+            try await service.createTransaction(
+                groupId: group.id, description: expense.description, amount: expense.amount,
+                paidBy: paidBy, type: .expense, date: date, splits: splits)
+            if isSelected {
+                try? await loadGroup(group)
+                saveCachedState()
+            }
+        } catch is URLError {
+            enqueuePending(pending)     // flaky connection — sync on reconnect
+        } catch {
+            await reportWatchFailure(expense, reason: error.localizedDescription)
+        }
+    }
+
+    /// Picks the first allocation that totals 100% across current members:
+    /// the Watch defaults, then the group defaults, then an even split. With
+    /// unknown members (offline, non-selected group) the allocation is trusted
+    /// as-is; failing everything, the current user carries the whole expense.
+    private static func watchSplitPercentages(preferred: [String: Double],
+                                              groupDefaults: [String: Double],
+                                              memberIds: [UUID]?,
+                                              fallbackUser: UUID) -> [UUID: Double] {
+        func resolve(_ raw: [String: Double]) -> [UUID: Double]? {
+            var result = [UUID: Double]()
+            for (key, pct) in raw where pct > 0 {
+                guard let id = UUID(uuidString: key) else { continue }
+                if let memberIds, !memberIds.contains(id) { continue }
+                result[id] = pct
+            }
+            let total = result.values.reduce(0, +)
+            return abs(total - 100) < 0.01 ? result : nil
+        }
+        if let watch = resolve(preferred) { return watch }
+        if let group = resolve(groupDefaults) { return group }
+        if let memberIds, !memberIds.isEmpty {
+            let share = 100.0 / Double(memberIds.count)
+            return Dictionary(uniqueKeysWithValues: memberIds.map { ($0, share) })
+        }
+        return [fallbackUser: 100]
+    }
+
+    /// Surfaces a rejected Watch expense on the iPhone (and, via notification
+    /// mirroring, on the Watch) so it isn't silently lost.
+    private func reportWatchFailure(_ expense: WatchExpense, reason: String) async {
+        errorMessage = "Watch expense \u{201C}\(expense.description)\u{201D} wasn't saved. \(reason)"
+        await NotificationManager.shared.fire(
+            title: "Watch expense not saved",
+            body: "\u{201C}\(expense.description)\u{201D}: \(reason)"
+        )
+    }
+
     // MARK: - Disk cache
 
     /// Snapshot of the data needed to render the dashboard offline.

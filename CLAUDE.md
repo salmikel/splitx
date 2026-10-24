@@ -30,6 +30,25 @@ backend (`web/`, `supabase/`). Being prepared for paid App Store release.
 - Stale `.pcm` / "module.modulemap has been modified" errors after adding a
   binary SPM package: clear DerivedData + File → Packages → Reset Package Caches.
 
+## Apple Watch app (Premium)
+
+- Companion-only watchOS app: captures description + amount and sends a
+  `WatchExpense` to the iPhone over WatchConnectivity (`transferUserInfo`); the
+  iPhone (`AppViewModel.saveWatchExpense`) applies the Settings ▸ Apple Watch
+  group/paid-by/split, re-checks Premium + cap, and saves or offline-queues. The
+  Watch has no Supabase/auth. Config goes iPhone → Watch via
+  `updateApplicationContext` (`WatchSessionManager.syncConfig`).
+- `ios/SplitX/Shared/WatchShared.swift` must be in BOTH targets; its types are
+  `nonisolated` because new watchOS targets default to MainActor isolation.
+- Target **SplitXWatch** (sources in `ios/SplitX/WatchApp/`), bundle ID
+  `yourcompany.SharedExpenses.watchkitapp`, watchOS 10.0, no packages; embedded
+  in SplitX via an "Embed Watch Content" phase + target dependency. It was added
+  by a careful hand edit of `project.pbxproj` (IDs `AAAA…08xx/09xx/0Axx`), not
+  xcodegen. Details and device-run steps: `ios/SplitX/WATCH_SETUP.md`.
+- `SplitX/Info.plist` hard-codes the version/build (the `MARKETING_VERSION`
+  build setting is unused). `WatchApp/Info.plist` must carry the **same**
+  `CFBundleShortVersionString`/`CFBundleVersion`, so bump both together.
+
 ## Backend
 
 - Supabase project ref: `jxcbchqewasrqjatznci` (name "splitx"). Security is

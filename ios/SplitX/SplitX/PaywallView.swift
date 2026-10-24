@@ -29,6 +29,7 @@ struct PaywallView: View {
                         benefit("person.2.fill", "Share groups with others")
                         benefit("list.bullet.rectangle.fill", "Up to 1,000 transactions per year")
                         benefit("doc.text.viewfinder", "Scan receipts to add expenses")
+                        benefit("applewatch", "Add expenses from your Apple Watch")
                         benefit("figure.2.and.child.holdinghands", "Shared with your Apple Family")
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)

@@ -126,6 +126,23 @@ struct SettingsView: View {
                     Text("Groups")
                 }
 
+                // ── Apple Watch ──
+                Section {
+                    if subscriptions.isPremium {
+                        NavigationLink(destination: WatchSettingsView()) {
+                            Label("Apple Watch", systemImage: "applewatch")
+                        }
+                    } else {
+                        PremiumLockedRow(
+                            title: "Apple Watch",
+                            subtitle: "Add expenses from your wrist with Premium.",
+                            onUpgrade: { showPaywall = true }
+                        )
+                    }
+                } header: {
+                    Text("Apple Watch")
+                }
+
                 // ── Premium ──
                 Section {
                     if subscriptions.isPremium {
