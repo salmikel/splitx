@@ -284,22 +284,29 @@ final class AppViewModel: ObservableObject {
     /// Saves an expense captured on the Apple Watch into the group it was
     /// logged against, using the paid-by and split allocation from the Watch
     /// settings. Premium and the transaction cap are re-checked here so a stale
-    /// Watch configuration can never bypass the paywall.
+    /// Watch configuration can never bypass the paywall. Returns the outcome
+    /// for the Watch; `notifyOnFailure` posts an iPhone notification instead,
+    /// for deliveries the Watch can't get an answer to.
     func saveWatchExpense(_ expense: WatchExpense,
                           settings: WatchSettingsStore,
-                          subscriptions: SubscriptionManager) async {
-        // A queued transfer can wake the app before launch work has finished.
+                          subscriptions: SubscriptionManager,
+                          notifyOnFailure: Bool) async -> WatchSaveReply {
+        // The Watch can wake the app in the background before launch work
+        // (entitlements, groups) has finished.
         await subscriptions.refreshEntitlements()
         if groups.isEmpty { await load() }
 
-        guard let user = supabase.auth.currentUser else { return }
+        func reject(_ reason: String) async -> WatchSaveReply {
+            await reportWatchFailure(expense, reason: reason, notify: notifyOnFailure)
+        }
+        guard let user = supabase.auth.currentUser else {
+            return await reject("Sign in to SplitX on your iPhone.")
+        }
         guard subscriptions.isPremium else {
-            await reportWatchFailure(expense, reason: "Apple Watch logging requires SplitX Premium.")
-            return
+            return await reject("Apple Watch logging requires SplitX Premium.")
         }
         guard let group = groups.first(where: { $0.id == expense.groupId }) else {
-            await reportWatchFailure(expense, reason: "You're no longer a member of that group.")
-            return
+            return await reject("You're no longer a member of that group.")
         }
 
         let isSelected = group.id == selectedGroup?.id
@@ -310,8 +317,7 @@ final class AppViewModel: ObservableObject {
             let thisYear = groupTransactions.filter { $0.date.hasPrefix(year) }.count
             guard subscriptions.canCreateTransaction(totalCount: groupTransactions.count,
                                                      thisYearCount: thisYear) else {
-                await reportWatchFailure(expense, reason: "You've reached your yearly transaction limit.")
-                return
+                return await reject("You've reached your yearly transaction limit.")
             }
         }
 
@@ -337,7 +343,8 @@ final class AppViewModel: ObservableObject {
             },
             queuedAt: Date()
         )
-        guard isOnline else { enqueuePending(pending); return }
+        let queued = WatchSaveReply(expenseId: expense.id, status: .queued, message: nil)
+        guard isOnline else { enqueuePending(pending); return queued }
 
         do {
             try await service.createTransaction(
@@ -347,10 +354,12 @@ final class AppViewModel: ObservableObject {
                 try? await loadGroup(group)
                 saveCachedState()
             }
+            return WatchSaveReply(expenseId: expense.id, status: .saved, message: nil)
         } catch is URLError {
             enqueuePending(pending)     // flaky connection — sync on reconnect
+            return queued
         } catch {
-            await reportWatchFailure(expense, reason: error.localizedDescription)
+            return await reject(error.localizedDescription)
         }
     }
 
@@ -381,14 +390,19 @@ final class AppViewModel: ObservableObject {
         return [fallbackUser: 100]
     }
 
-    /// Surfaces a rejected Watch expense on the iPhone (and, via notification
-    /// mirroring, on the Watch) so it isn't silently lost.
-    private func reportWatchFailure(_ expense: WatchExpense, reason: String) async {
+    /// Surfaces a rejected Watch expense on the iPhone so it isn't silently
+    /// lost. The notification (mirrored to the Watch) is only needed when the
+    /// Watch won't get the reply to show it itself.
+    private func reportWatchFailure(_ expense: WatchExpense, reason: String,
+                                    notify: Bool) async -> WatchSaveReply {
         errorMessage = "Watch expense \u{201C}\(expense.description)\u{201D} wasn't saved. \(reason)"
-        await NotificationManager.shared.fire(
-            title: "Watch expense not saved",
-            body: "\u{201C}\(expense.description)\u{201D}: \(reason)"
-        )
+        if notify {
+            await NotificationManager.shared.fire(
+                title: "Watch expense not saved",
+                body: "\u{201C}\(expense.description)\u{201D}: \(reason)"
+            )
+        }
+        return WatchSaveReply(expenseId: expense.id, status: .rejected, message: reason)
     }
 
     // MARK: - Disk cache

@@ -39,15 +39,21 @@ Watch.
 3. On the Watch, tap **+**, write the description (Scribble or dictation), type
    the amount, and tap ✓. The expense appears in that group on the iPhone.
    - Larger Watches open the keyboard first. The button at the bottom right
-     switches to Scribble, and watchOS remembers that choice.
+     switches to Scribble.
 
 ## How it works
 
 - iPhone → Watch (`updateApplicationContext`): whether Premium is active, the
   chosen group, and its currency.
-- Watch → iPhone (`transferUserInfo`, queued by the system): the description and amount.
+- Watch → iPhone: the description and amount, sent two ways. `sendMessage`
+  wakes the iPhone app in the background (no need to open it, even when the
+  phone is locked) and waits for the result, which the Watch's confirmation
+  screen shows. `transferUserInfo` keeps a queued copy as a fallback. Once the
+  iPhone confirms, the copy is cancelled. If the iPhone is out of range, the
+  Watch resends when it's back, and the iPhone saves each expense only once.
 - The iPhone applies the paid-by and split from Settings ▸ Apple Watch. If those
   don't add up to 100% across the current members, it uses the group's defaults,
   and failing that an even split.
-- Before saving, the iPhone checks Premium and the yearly cap again. If it rejects
-  an expense, it shows a notification, which is mirrored to the Watch.
+- Before saving, the iPhone checks Premium and the yearly cap again. A rejection
+  shows on the Watch's confirmation screen. If the Watch can't get the answer,
+  the iPhone posts a notification instead.

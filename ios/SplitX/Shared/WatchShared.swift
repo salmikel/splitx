@@ -22,8 +22,9 @@ nonisolated struct WatchConfig: Codable, Equatable {
     )
 }
 
-/// Watch → iPhone: one expense captured on the Watch. Sent with
-/// `transferUserInfo`, which the system queues until the iPhone receives it.
+/// Watch → iPhone: one expense captured on the Watch. Sent with `sendMessage`
+/// (wakes the iPhone app in the background) and also queued with
+/// `transferUserInfo` as a fallback, so the iPhone de-duplicates by `id`.
 /// The iPhone applies the paid-by and split allocation configured in Settings.
 nonisolated struct WatchExpense: Codable, Identifiable {
     let id: UUID
@@ -33,9 +34,24 @@ nonisolated struct WatchExpense: Codable, Identifiable {
     let createdAt: Date
 }
 
+nonisolated enum WatchSaveStatus: String, Codable {
+    case saved      // stored in Supabase
+    case queued     // kept on the iPhone; uploads when it's back online
+    case rejected   // not saved, see `message`
+}
+
+/// iPhone → Watch: the outcome of saving one `WatchExpense`, sent as the reply
+/// to `sendMessage`. Once the Watch has it, the expense is never resent.
+nonisolated struct WatchSaveReply: Codable {
+    let expenseId: UUID
+    let status: WatchSaveStatus
+    let message: String?
+}
+
 nonisolated enum WatchPayloadKey {
     static let config  = "config"
     static let expense = "expense"
+    static let reply   = "reply"
 }
 
 /// Wraps a Codable value as JSON `Data` inside a WatchConnectivity dictionary

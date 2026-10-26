@@ -33,11 +33,18 @@ backend (`web/`, `supabase/`). Being prepared for paid App Store release.
 ## Apple Watch app (Premium)
 
 - Companion-only watchOS app: captures description + amount and sends a
-  `WatchExpense` to the iPhone over WatchConnectivity (`transferUserInfo`); the
-  iPhone (`AppViewModel.saveWatchExpense`) applies the Settings ▸ Apple Watch
-  group/paid-by/split, re-checks Premium + cap, and saves or offline-queues. The
-  Watch has no Supabase/auth. Config goes iPhone → Watch via
-  `updateApplicationContext` (`WatchSessionManager.syncConfig`).
+  `WatchExpense` to the iPhone over WatchConnectivity; the iPhone
+  (`AppViewModel.saveWatchExpense`) applies the Settings ▸ Apple Watch
+  group/paid-by/split, re-checks Premium + cap, saves or offline-queues, and
+  returns a `WatchSaveReply`. The Watch has no Supabase/auth. Config goes
+  iPhone → Watch via `updateApplicationContext` (`WatchSessionManager.syncConfig`).
+- **Delivery:** the Watch sends each expense with `sendMessage` (wakes the
+  iPhone app in the background, even locked; the Supabase session keychain item
+  is `AfterFirstUnlock`) *and* queues it with `transferUserInfo` as the outbox.
+  On the iPhone's reply the queued copy is cancelled; unconfirmed ones are
+  re-sent on reachability / foreground. The iPhone de-dupes by expense id
+  (persisted outcomes). The bridge is set up in `SplitXApp.init`, not
+  `onAppear`, because background launches show no window.
 - `ios/SplitX/Shared/WatchShared.swift` must be in BOTH targets; its types are
   `nonisolated` because new watchOS targets default to MainActor isolation.
 - Target **SplitXWatch** (sources in `ios/SplitX/WatchApp/`), bundle ID

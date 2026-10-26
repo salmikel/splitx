@@ -3,11 +3,31 @@ import SwiftUI
 @main
 struct SplitXApp: App {
     @StateObject private var auth = AuthViewModel()
-    @StateObject private var appVM = AppViewModel()
+    @StateObject private var appVM: AppViewModel
     @StateObject private var networkMonitor = NetworkMonitor()
-    @StateObject private var subscriptions = SubscriptionManager()
+    @StateObject private var subscriptions: SubscriptionManager
     @StateObject private var adManager = AdManager()
-    @StateObject private var watchSettings = WatchSettingsStore()
+    @StateObject private var watchSettings: WatchSettingsStore
+
+    init() {
+        // Built here so the Apple Watch bridge (Premium) can use them at
+        // launch: when the Watch wakes the app in the background to save an
+        // expense, no window appears, so onAppear never runs.
+        let appVM = AppViewModel()
+        let subscriptions = SubscriptionManager()
+        let watchSettings = WatchSettingsStore()
+        _appVM = StateObject(wrappedValue: appVM)
+        _subscriptions = StateObject(wrappedValue: subscriptions)
+        _watchSettings = StateObject(wrappedValue: watchSettings)
+
+        let watch = WatchSessionManager.shared
+        watch.setExpenseHandler { expense, notifyOnFailure in
+            await appVM.saveWatchExpense(expense, settings: watchSettings,
+                                         subscriptions: subscriptions,
+                                         notifyOnFailure: notifyOnFailure)
+        }
+        watch.activate()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -33,16 +53,7 @@ struct SplitXApp: App {
                     // Initialize the ads SDK and warm up the first interstitial.
                     adManager.start()
 
-                    // Apple Watch bridge (Premium): save expenses captured on
-                    // the Watch and keep its configuration current.
-                    let watch = WatchSessionManager.shared
-                    watch.setExpenseHandler { [appVM, watchSettings, subscriptions] expense in
-                        Task {
-                            await appVM.saveWatchExpense(expense, settings: watchSettings,
-                                                         subscriptions: subscriptions)
-                        }
-                    }
-                    watch.activate()
+                    // Keep the Apple Watch's configuration current.
                     syncWatchConfig()
                 }
                 .onChange(of: subscriptions.isPremium) { syncWatchConfig() }

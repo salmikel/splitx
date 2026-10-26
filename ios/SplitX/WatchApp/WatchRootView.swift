@@ -46,11 +46,8 @@ struct WatchRootView: View {
             }
         }
         .fullScreenCover(item: $saved) { expense in
-            WatchConfirmationView(
-                expense: expense,
-                currencyCode: config.currencyCode,
-                delivered: connectivity.isPhoneReachable
-            )
+            WatchConfirmationView(expense: expense, currencyCode: config.currencyCode)
+                .environmentObject(connectivity)
         }
     }
 
