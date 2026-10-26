@@ -58,7 +58,7 @@ backend (`web/`, `supabase/`). Being prepared for paid App Store release.
   validation requires. Bump them in Project ▸ SplitX ▸ Build Settings, *not* a
   target's General tab (that writes a per-target override and desyncs the
   Watch). Every upload needs a higher build number. v1.0 (2) is live; current
-  is 1.1 (3).
+  is 1.2 (4).
 
 ## Backend
 
