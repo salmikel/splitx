@@ -57,3 +57,43 @@ Watch.
 - Before saving, the iPhone checks Premium and the yearly cap again. A rejection
   shows on the Watch's confirmation screen. If the Watch can't get the answer,
   the iPhone posts a notification instead.
+
+## Watch face complication (SplitXComplication)
+
+A WidgetKit complication that puts SplitX on the watch face; tapping it launches
+the Watch app (watchOS launches a complication's owning app for you), which
+opens to the **+** add-expense screen. It carries no live data.
+
+| Path | Target |
+|---|---|
+| `WatchComplication/SplitXComplication.swift`, `WatchComplication/Info.plist` | SplitXComplication |
+
+The **SplitXComplication** widget-extension target is wired into the project.
+Like the Watch target, it was added by a **careful hand edit** of
+`project.pbxproj` (IDs `AAAA…0Bxx`), **not** xcodegen — a Widget Extension is a
+whole new target and this `.xcodeproj` is hand-maintained. The pieces:
+
+- **Target** `SplitXComplication`, product type
+  `com.apple.product-type.app-extension`, `SDKROOT = watchos`,
+  `WATCHOS_DEPLOYMENT_TARGET = 10.0`, `TARGETED_DEVICE_FAMILY = 4`,
+  `SWIFT_VERSION = 5.0`, automatic signing, `INFOPLIST_FILE =
+  WatchComplication/Info.plist`. Its Info.plist declares the one required key,
+  `NSExtensionPointIdentifier = com.apple.widgetkit-extension`.
+- **Bundle id** `yourcompany.SharedExpenses.watchkitapp.SplitXComplication` —
+  the Watch app's id plus `.SplitXComplication`. A watch-face complication's
+  extension **must** be a child of, and embedded in, the Watch app.
+- **Embedded in SplitXWatch** (not SplitX) via an "Embed Foundation Extensions"
+  copy-files phase (`dstSubfolderSpec = 13`, i.e. PlugIns) on the SplitXWatch
+  target, plus a SplitXWatch → SplitXComplication target dependency. At build
+  time the appex lands in `SplitXWatch.app/PlugIns/SplitXComplication.appex`.
+- **Versioning:** no `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` on the
+  target, so it inherits the project-level values (its Info.plist reads the
+  variables), keeping it in lockstep with the iPhone and Watch apps as App Store
+  validation requires.
+- Only `SplitXComplication.swift` is in the target's Sources phase. No Swift
+  packages, no entitlements, no WatchConnectivity, no asset catalog — it is
+  purely a launcher and imports nothing from the Watch app.
+
+To try it: build the **SplitXWatch** scheme to a Watch (or Simulator), then on
+the watch long-press the face ▸ Edit ▸ add a complication slot ▸ pick **SplitX**.
+Tapping it opens the Watch app on the **+** add-expense screen.
